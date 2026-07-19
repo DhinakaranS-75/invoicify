@@ -1,0 +1,86 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import os from 'os';
+import { connectDB } from './config/db.js';
+
+// Route imports
+import authRoutes from './routes/authRoutes.js';
+import invoiceRoutes from './routes/invoiceRoutes.js';
+import customerRoutes from './routes/customerRoutes.js';
+import itemRoutes from './routes/itemRoutes.js';
+
+// Load environment variables from .env
+dotenv.config();
+
+// Connect to the database
+connectDB();
+
+const app = express();
+
+// ---- Middleware ----
+// Allow the React frontend to talk to this API.
+// In development we allow localhost AND local-network IPs (e.g. 192.168.x.x)
+// so you can open the app on your phone over the same WiFi.
+const allowedOrigin = (origin, callback) => {
+  // Requests with no origin (mobile apps, curl, same-origin) are allowed
+  if (!origin) return callback(null, true);
+  const ok = /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+):\d+$/.test(origin)
+    || origin === process.env.CLIENT_URL;
+  callback(null, ok);
+};
+app.use(cors({ origin: allowedOrigin, credentials: true }));
+// Parse JSON request bodies (so req.body works)
+app.use(express.json({ limit: '10mb' }));
+
+// ---- Health check route ----
+app.get('/', (req, res) => {
+  res.json({ message: 'Invoicify API is running 🚀' });
+});
+
+// ---- API routes ----
+app.use('/api/auth', authRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/items', itemRoutes);
+
+// ---- 404 handler ----
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+// ---- Error handler ----
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Server error', error: err.message });
+});
+
+const PORT = process.env.PORT || 5000;
+// Listen on 0.0.0.0 so devices on the same WiFi (your phone) can reach it too.
+// Find this machine's LAN IPv4 so the phone URL is ready to copy.
+function getLanIp() {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) return net.address;
+    }
+  }
+  return null;
+}
+
+app.listen(PORT, '0.0.0.0', () => {
+  const lanIp = getLanIp();
+  const emailReady = !!(process.env.SMTP_HOST || process.env.SMTP_USER || process.env.GMAIL_USER);
+  console.log('');
+  console.log('  ╔══════════════════════════════════════════════╗');
+  console.log('  ║        🧾  I N V O I C I F Y   —   API         ║');
+  console.log('  ╚══════════════════════════════════════════════╝');
+  console.log('');
+  console.log(`   🚀  Server        →  http://localhost:${PORT}`);
+  console.log(`   📱  On your phone →  http://${lanIp || '<your-computer-ip>'}:${PORT}`);
+  console.log(`   📧  Email         →  ${emailReady ? 'configured ✅' : 'not set (codes log to console)'}`);
+  console.log(`   🌱  Environment   →  ${process.env.NODE_ENV || 'development'}`);
+  console.log('');
+  console.log('   ✨  Ready to roll — happy invoicing!  🎉');
+  console.log('');
+});

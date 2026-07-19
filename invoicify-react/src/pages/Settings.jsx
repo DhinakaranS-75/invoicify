@@ -1,0 +1,436 @@
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
+import { usePermissions } from '../hooks/usePermissions';
+import { isValidEmail, ROLE_LABELS } from '../utils/format';
+import { buildInvoiceNumber } from '../utils/invoiceNumber';
+
+const TEMPLATES = [
+  { id: 'classic', name: 'Classic', desc: 'Colorful bands, bold and friendly.',
+    thumb: (<><div className="tt-band"></div><div className="tt-title">INVOICE</div><div className="tt-line"></div><div className="tt-line short"></div><div className="tt-table"></div></>) },
+  { id: 'corporate', name: 'Corporate', desc: 'Formal, minimal, business-ready.',
+    thumb: (<><div className="tt-title dark">INVOICE</div><div className="tt-rule"></div><div className="tt-line"></div><div className="tt-line short"></div><div className="tt-table" style={{ borderTopColor: '#1b1c33' }}></div></>) },
+  { id: 'creative', name: 'Creative', desc: 'Stylish accent sidebar, modern look.',
+    thumb: (<><div className="tt-sidebar"></div><div className="tt-title accent">INVOICE</div><div className="tt-line"></div><div className="tt-line short"></div><div className="tt-table" style={{ borderTopColor: 'var(--teal)' }}></div></>) },
+  { id: 'minimal', name: 'Minimal', desc: 'Clean, borderless and airy.',
+    thumb: (<><div className="tt-title" style={{ color: '#3a3a4a', fontWeight: 600, letterSpacing: '2px', marginTop: '2px' }}>INVOICE</div><div className="tt-line"></div><div className="tt-line short"></div><div className="tt-table" style={{ borderTopColor: '#dcdce6' }}></div></>) },
+  { id: 'elegant', name: 'Elegant', desc: 'Serif fonts, gold luxury feel.', style: { border: '1px solid #c9a86a' },
+    thumb: (<><div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg,#c9a86a,#e6cfa0,#c9a86a)' }}></div><div className="tt-title" style={{ color: '#8a6d3b', fontFamily: 'Georgia,serif', marginTop: '6px' }}>INVOICE</div><div className="tt-line"></div><div className="tt-line short"></div><div className="tt-table" style={{ borderTopColor: '#8a6d3b' }}></div></>) },
+  { id: 'modern', name: 'Modern', desc: 'Bold purple header block.', style: { padding: 0 },
+    thumb: (<><div style={{ background: 'linear-gradient(120deg,#5b21b6,#7c3aed)', padding: '14px 12px' }}><div className="tt-title" style={{ color: '#fff', margin: 0 }}>INVOICE</div></div><div style={{ padding: '10px 12px' }}><div className="tt-line"></div><div className="tt-line short"></div><div className="tt-table" style={{ borderTopColor: '#5b21b6' }}></div></div></>) },
+  { id: 'redline', name: 'Redline', desc: 'Red & charcoal, striped rows.', style: { padding: '12px' },
+    thumb: (<><div className="tt-title" style={{ color: '#e0335c', marginTop: '2px' }}>INVOICE</div><div className="tt-line"></div><div className="tt-line short"></div><div className="tt-table" style={{ borderTopColor: '#2b2f3a' }}></div><div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '10px', background: 'linear-gradient(100deg,#e0335c 30%,#2b2f3a 30%)' }}></div></>) },
+  { id: 'executive', name: 'Executive', desc: 'Black & white, bordered formal.', style: { padding: 0 },
+    thumb: (<><div style={{ background: '#1b1c1c', padding: '14px 12px' }}><div className="tt-title" style={{ color: '#fff', margin: 0 }}>INVOICE</div></div><div style={{ padding: '10px 12px' }}><div className="tt-line"></div><div className="tt-line short"></div><div className="tt-table" style={{ borderTopColor: '#1b1c1c' }}></div></div></>) },
+  { id: 'goldline', name: 'Goldline', desc: 'White & gold, elegant clean.', style: { padding: '12px' },
+    thumb: (<><div className="tt-title" style={{ color: '#2a2a2a', fontWeight: 600, letterSpacing: '2px', marginTop: '2px' }}>INVOICE</div><div className="tt-line"></div><div className="tt-line short"></div><div className="tt-table" style={{ borderTopColor: '#d4af37' }}></div><div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '8px', background: 'linear-gradient(90deg,#d4af37,#e8d199,#d4af37)' }}></div></>) }
+];
+
+const TABS = [
+  { id: 'profile', label: 'My Profile', icon: 'fa-user' },
+  { id: 'company', label: 'Company Details', icon: 'fa-building' },
+  { id: 'preferences', label: 'Preferences', icon: 'fa-sliders' },
+  { id: 'team', label: 'Team Members', icon: 'fa-users-gear' }
+];
+
+export default function Settings() {
+  const location = useLocation();
+  const [tab, setTab] = useState(location.state?.tab || 'profile');
+  const [drilled, setDrilled] = useState(false); // mobile drill-down
+  const { can } = usePermissions();
+
+  const visibleTabs = TABS.filter((t) => t.id !== 'team' || can('manageTeam'));
+
+  const MOBILE = '(max-width:900px)'; // drill-down UI only exists at this width
+
+  const openTab = (id) => { setTab(id); setDrilled(true); };
+  const backToList = () => {
+    // On mobile, consume the history entry we pushed so the back-stack stays clean.
+    // history.back() triggers popstate, which sets drilled=false (see effect below).
+    if (window.matchMedia(MOBILE).matches) window.history.back();
+    else setDrilled(false);
+  };
+
+  // Mobile only: make the browser Back button close the open panel first, instead of
+  // leaving the Settings page entirely. Desktop (>900px) back button is left untouched.
+  useEffect(() => {
+    if (!drilled) return;
+    if (!window.matchMedia(MOBILE).matches) return;
+    window.history.pushState({ settingsDrill: true }, '');
+    const onPop = () => setDrilled(false);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [drilled]);
+
+  return (
+    <div className="page active">
+      <div className="app-header-row">
+        <div><h1>Settings</h1><p className="hide-mobile">Manage your account, company, and preferences.</p></div>
+      </div>
+
+      <div className={'settings-layout' + (drilled ? ' drilled' : '')}>
+        <div className="settings-tabs">
+          {visibleTabs.map((t) => (
+            <button key={t.id} className={'settings-tab' + (tab === t.id ? ' active' : '')} onClick={() => openTab(t.id)}>
+              <i className={'fa-solid ' + t.icon}></i> {t.label} <i className="fa-solid fa-chevron-right tab-chevron"></i>
+            </button>
+          ))}
+        </div>
+
+        <div className="settings-content">
+          <div className="settings-back" onClick={backToList}><i className="fa-solid fa-arrow-left"></i> Back to Settings</div>
+          {tab === 'profile' && <ProfileTab />}
+          {tab === 'company' && <CompanyTab />}
+          {tab === 'preferences' && <PreferencesTab />}
+          {tab === 'team' && can('manageTeam') && <TeamTab />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfileTab() {
+  const { currentUser, updateCurrentUser, deleteAccount } = useData();
+  const { toast } = useToast();
+  const [f, setF] = useState({
+    firstName: currentUser?.firstName || '', lastName: currentUser?.lastName || '', email: currentUser?.email || ''
+  });
+  const [delOpen, setDelOpen] = useState(false);
+  const [delData, setDelData] = useState(false);
+  const [delConfirm, setDelConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const initial = (currentUser?.name || 'U').trim().charAt(0).toUpperCase();
+
+  const confirmDelete = async () => {
+    if (delConfirm.trim().toUpperCase() !== 'DELETE') return;
+    setDeleting(true);
+    try {
+      await deleteAccount(delData);
+      // account gone → DataContext logs out → app returns to the auth screen
+    } catch (err) {
+      setDeleting(false);
+      toast('Delete failed', err.message || 'Could not delete your account.', 'error');
+    }
+  };
+
+  const onAvatar = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => updateCurrentUser({ avatar: ev.target.result });
+    reader.readAsDataURL(file);
+    toast('Photo updated', 'Your profile photo was changed.');
+  };
+
+  const save = async () => {
+    if (f.firstName.trim().length < 1) { toast('First name required', 'Please enter your first name.', 'error'); return; }
+    if (!isValidEmail(f.email)) { toast('Invalid email', 'Please enter a valid email.', 'error'); return; }
+    try {
+      await updateCurrentUser({ firstName: f.firstName, lastName: f.lastName, email: f.email });
+      toast('Profile saved', 'Your changes were saved.');
+    } catch (err) {
+      toast('Save failed', err.message || 'Could not save profile.', 'error');
+    }
+  };
+
+  return (
+    <div className="settings-panel active">
+      <div className="panel" style={{ maxWidth: '620px' }}>
+        <div className="profile-menu-header">
+          <div className="profile-avatar-big">
+            {currentUser?.avatar ? <img src={currentUser.avatar} alt="me" /> : <span>{initial}</span>}
+            <label className="avatar-upload-btn" title="Change photo">
+              <i className="fa-solid fa-camera"></i>
+              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onAvatar} />
+            </label>
+          </div>
+          <div>
+            <div className="profile-menu-name">{currentUser?.name}</div>
+            <div className="profile-menu-email">{currentUser?.email}</div>
+          </div>
+        </div>
+        <div className="profile-info-row"><span>Company</span><strong>{currentUser?.company?.name || '—'}</strong></div>
+        <div className="profile-info-row"><span>User ID</span><strong>{currentUser?.id ? 'USR-' + String(currentUser.id).slice(-6).toUpperCase() : '—'}</strong></div>
+        <div className="profile-info-row"><span>Company ID</span><strong>{currentUser?.companyId || '—'}</strong></div>
+
+        <div className="section-gap">
+          <h3>Edit Profile</h3>
+          <div className="grid2">
+            <div className="field-sm"><label>First Name</label><input value={f.firstName} onChange={set('firstName')} placeholder="John" /></div>
+            <div className="field-sm"><label>Last Name</label><input value={f.lastName} onChange={set('lastName')} placeholder="Doe" /></div>
+          </div>
+          <div className="field-sm"><label>Email</label><input type="email" value={f.email} onChange={set('email')} placeholder="johndoe@gmail.com" /></div>
+          <button className="btn btn-small btn-orange" onClick={save}>Save Changes</button>
+        </div>
+
+        <div className="section-gap danger-zone">
+          <h3 style={{ color: 'var(--danger)' }}>Danger Zone</h3>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 12px' }}>Permanently delete your account. This cannot be undone.</p>
+          <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={() => { setDelData(false); setDelConfirm(''); setDelOpen(true); }}>
+            <i className="fa-solid fa-trash-can"></i> Delete Account
+          </button>
+        </div>
+      </div>
+
+      {/* Delete account confirmation */}
+      <div className={'confirm-overlay' + (delOpen ? ' show' : '')} onClick={(e) => { if (e.target === e.currentTarget && !deleting) setDelOpen(false); }}>
+        <div className="confirm-box" style={{ textAlign: 'left', maxWidth: '440px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <div className="confirm-icon" style={{ margin: 0, width: '44px', height: '44px', fontSize: '18px', background: 'rgba(224,51,92,.12)', color: 'var(--danger)' }}><i className="fa-solid fa-triangle-exclamation"></i></div>
+            <h3 style={{ margin: 0 }}>Delete account?</h3>
+          </div>
+          <p style={{ margin: '6px 0 14px', color: 'var(--muted)', fontSize: '13.5px' }}>This permanently deletes your account (<strong>{currentUser?.email}</strong>). This action <strong>cannot be undone</strong>.</p>
+          <label className="checkbox-row" style={{ alignItems: 'flex-start', marginBottom: '14px' }}>
+            <input type="checkbox" checked={delData} onChange={(e) => setDelData(e.target.checked)} />
+            <span style={{ fontSize: '13px', color: '#3a3a5c' }}>Also permanently delete all my <strong>invoices, customers and items</strong>. (If left unchecked, only my login is removed.)</span>
+          </label>
+          <div className="field-sm"><label>Type <strong>DELETE</strong> to confirm</label><input value={delConfirm} onChange={(e) => setDelConfirm(e.target.value)} placeholder="DELETE" /></div>
+          <div className="confirm-actions" style={{ flexDirection: 'row', marginTop: '8px' }}>
+            <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff', opacity: (delConfirm.trim().toUpperCase() === 'DELETE' && !deleting) ? 1 : 0.5 }} disabled={delConfirm.trim().toUpperCase() !== 'DELETE' || deleting} onClick={confirmDelete}>
+              {deleting ? 'Deleting…' : 'Delete Account'}
+            </button>
+            <button className="btn btn-small btn-outline" disabled={deleting} onClick={() => setDelOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompanyTab() {
+  const { currentUser, updateCurrentUser, companySignature, setCompanySignature } = useData();
+  const { toast } = useToast();
+  const c = currentUser?.company || {};
+  const [f, setF] = useState({
+    name: c.name || '', email: c.email || '', contact: c.contact || '', contactCode: c.contactCode || '+91',
+    address: c.address || '', state: c.state || '',
+    country: c.country || 'India', gst: c.gst || '', bankName: c.bankName || '',
+    accountNumber: c.accountNumber || '', ifsc: c.ifsc || '', terms: c.terms || '', logo: c.logo || null
+  });
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  const onLogo = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setF((p) => ({ ...p, logo: ev.target.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const onSignature = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { setCompanySignature(ev.target.result); toast('Signature uploaded', 'Applied to all invoices.'); };
+    reader.readAsDataURL(file);
+  };
+
+  const save = async () => {
+    if (f.name.trim().length < 1) { toast('Company name required', 'Please enter your company name.', 'error'); return; }
+    try {
+      await updateCurrentUser({ company: { ...c, ...f } });
+      toast('Company saved', 'Your company details were updated.');
+    } catch (err) {
+      toast('Save failed', err.message || 'Could not save company details.', 'error');
+    }
+  };
+
+  return (
+    <div className="settings-panel active">
+      <div className="panel" style={{ maxWidth: '620px' }}>
+        <h3>Company Details</h3>
+        <div className="logo-upload">
+          <div className="logo-preview">{f.logo ? <img src={f.logo} alt="logo" /> : <i className="fa-solid fa-building"></i>}</div>
+          <div className="logo-upload-text"><div className="lu-title">Company Logo</div><div className="lu-sub">Appears on invoices</div></div>
+          <label className="file-btn">Upload<input type="file" accept="image/*" style={{ display: 'none' }} onChange={onLogo} /></label>
+        </div>
+        <div className="field-sm"><label>Company Name</label><input value={f.name} onChange={set('name')} placeholder="Your Company Pvt Ltd" /></div>
+        <div className="grid2">
+          <div className="field-sm"><label>Company Email</label><input type="email" value={f.email} onChange={set('email')} placeholder="[email protected]" /></div>
+          <div className="field-sm">
+            <label>Contact Number</label>
+            <div className="phone-wrap-sm">
+              <select className="phone-code-select-sm" value={f.contactCode} onChange={set('contactCode')}>
+                <option value="+91">🇮🇳 +91</option>
+                <option value="+1">🇺🇸 +1</option>
+                <option value="+44">🇬🇧 +44</option>
+                <option value="+971">🇦🇪 +971</option>
+                <option value="+61">🇦🇺 +61</option>
+                <option value="+65">🇸🇬 +65</option>
+                <option value="+49">🇩🇪 +49</option>
+              </select>
+              <input value={f.contact} onChange={(e) => setF((p) => ({ ...p, contact: e.target.value.replace(/[^0-9\s-]/g, '') }))} placeholder="98765 43210" inputMode="numeric" />
+            </div>
+          </div>
+        </div>
+        <div className="field-note" style={{ marginBottom: '12px' }}>Email &amp; phone show under "For any questions" on your invoices.</div>
+        <div className="grid2">
+          <div className="field-sm"><label>Address</label><input value={f.address} onChange={set('address')} placeholder="Street, City" /></div>
+          <div className="field-sm"><label>State</label><input value={f.state} onChange={set('state')} placeholder="Tamil Nadu" /></div>
+        </div>
+        <div className="field-sm"><label>GST Number</label><input value={f.gst} onChange={set('gst')} placeholder="22AAAAA0000A1Z5" /></div>
+
+        <div className="section-gap">
+          <h3>Bank Details</h3>
+          <div className="grid2">
+            <div className="field-sm"><label>Bank Name</label><input value={f.bankName} onChange={set('bankName')} placeholder="Type bank name" /></div>
+            <div className="field-sm"><label>Account Number</label><input value={f.accountNumber} onChange={(e) => setF((p) => ({ ...p, accountNumber: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="Type account number" inputMode="numeric" /></div>
+          </div>
+          <div className="field-sm"><label>IFSC Code</label><input value={f.ifsc} onChange={set('ifsc')} placeholder="Type IFSC code" /></div>
+        </div>
+
+        <div className="section-gap">
+          <h3>Default Invoice Terms</h3>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 12px' }}>Auto-filled into the Notes / Terms of every new invoice. You can still edit it per invoice.</p>
+          <div className="field-sm"><label>Terms &amp; Conditions</label><textarea rows={4} value={f.terms} onChange={set('terms')} placeholder="e.g. Payment due within 15 days. Goods once sold will not be taken back. Thank you for your business!"></textarea></div>
+        </div>
+
+        <div className="section-gap">
+          <h3>Signature</h3>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 12px' }}>Applied to all invoices as the authorized signatory.</p>
+          <div className="logo-upload">
+            <div className="logo-preview">{companySignature ? <img src={companySignature} alt="signature" /> : <i className="fa-solid fa-signature"></i>}</div>
+            <div className="logo-upload-text"><div className="lu-title">Digital Signature</div><div className="lu-sub">PNG with transparent background</div></div>
+            <label className="file-btn">Upload<input type="file" accept="image/*" style={{ display: 'none' }} onChange={onSignature} /></label>
+          </div>
+          {companySignature && <button className="btn btn-small btn-outline section-gap" onClick={() => { setCompanySignature(null); toast('Signature removed', 'Removed from invoices.', 'delete'); }}>Remove Signature</button>}
+        </div>
+
+        <div className="section-gap"><button className="btn btn-small btn-orange" onClick={save}>Save Company Details</button></div>
+      </div>
+    </div>
+  );
+}
+
+function PreferencesTab() {
+  const { invoiceTemplate, setInvoiceTemplate, invoiceNumberConfig, setInvoiceNumberConfig } = useData();
+  const { toast } = useToast();
+  const [cfg, setCfg] = useState(invoiceNumberConfig);
+  const setC = (k) => (e) => setCfg((p) => ({ ...p, [k]: e.target.value }));
+
+  const selectTemplate = (id) => { setInvoiceTemplate(id); localStorage.setItem('iv_onboard_tmpl', '1'); toast('Template applied', `${TEMPLATES.find((t) => t.id === id)?.name} is now your invoice design.`); };
+
+  const saveNumbering = () => {
+    setInvoiceNumberConfig({ ...cfg, padding: parseInt(cfg.padding) || 0, next: parseInt(cfg.next) || 1 });
+    toast('Numbering saved', `Next invoice: ${buildInvoiceNumber({ ...cfg, padding: parseInt(cfg.padding) || 0, next: parseInt(cfg.next) || 1 })}`);
+  };
+
+  const preview = buildInvoiceNumber({ ...cfg, padding: parseInt(cfg.padding) || 0, next: parseInt(cfg.next) || 1 });
+
+  return (
+    <div className="settings-panel active">
+      <div className="panel" style={{ maxWidth: '720px' }}>
+        <h3>Invoice Numbering</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Customize how your invoice numbers are generated.</p>
+        <div className="grid2">
+          <div className="field-sm"><label>Prefix</label><input value={cfg.prefix} onChange={setC('prefix')} placeholder="INV" /></div>
+          <div className="field-sm"><label>Middle (optional)</label><input value={cfg.middle} onChange={setC('middle')} placeholder="2026" /></div>
+          <div className="field-sm"><label>Separator</label><input value={cfg.separator} onChange={setC('separator')} placeholder="-" maxLength="3" /></div>
+          <div className="field-sm"><label>Number Padding</label><input type="number" min="0" max="8" value={cfg.padding} onChange={setC('padding')} /></div>
+          <div className="field-sm"><label>Next Number</label><input type="number" min="1" value={cfg.next} onChange={setC('next')} /></div>
+        </div>
+        <div className="invnum-help">Prefix is required · Middle is optional (year or company code)</div>
+        <div className="invnum-preview">Preview: <strong>{preview}</strong></div>
+        <div className="invnum-tips">
+          <div className="tips-title"><i className="fa-solid fa-lightbulb"></i> Format Tips</div>
+          <ul>
+            <li><strong>INV</strong> = Invoice — the most common prefix.</li>
+            <li>Middle for year: <strong>INV-2026-001</strong> for easy filing.</li>
+            <li>Middle for company: <strong>INV-COM-001</strong> (COM = 3-letter company code).</li>
+            <li>Leave Middle blank for a simple <strong>INV-001</strong> format.</li>
+          </ul>
+        </div>
+        <button className="btn btn-small btn-orange section-gap" onClick={saveNumbering}>Save Numbering</button>
+      </div>
+
+      <div className="panel section-gap" style={{ maxWidth: '720px' }}>
+        <h3>Invoice Template</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Choose a design for your invoices. Applies to preview, PDF, and print.</p>
+        <div className="template-grid">
+          {TEMPLATES.map((t) => (
+            <div key={t.id} className={'template-card' + (invoiceTemplate === t.id ? ' selected' : '')} onClick={() => selectTemplate(t.id)}>
+              <div className={'template-thumb tpl-thumb-' + t.id} style={t.style}>
+                {t.thumb}
+              </div>
+              <div className="template-name">{t.name} <i className="fa-solid fa-circle-check tpl-check"></i></div>
+              <div className="template-desc">{t.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamTab() {
+  const { teamMembers, addTeamMember, removeTeamMember } = useData();
+  const { toast } = useToast();
+  const [f, setF] = useState({ name: '', email: '', password: '', role: 'staff' });
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  const add = async () => {
+    if (f.name.trim().length < 1) { toast('Name required', 'Enter the member name.', 'error'); return; }
+    if (!isValidEmail(f.email)) { toast('Invalid email', 'Enter a valid email.', 'error'); return; }
+    if (f.password.length < 6) { toast('Weak password', 'Min 6 characters.', 'error'); return; }
+    try {
+      await addTeamMember({ name: f.name.trim(), email: f.email, password: f.password, role: f.role });
+      setF({ name: '', email: '', password: '', role: 'staff' });
+      toast('Member added', `${f.name} can now log in.`);
+    } catch (err) {
+      toast('Could not add member', err.message || 'Please try again.', 'error');
+    }
+  };
+
+  const remove = async (m) => {
+    try {
+      await removeTeamMember(m._id || m.id);
+      toast('Member removed', `${m.name}'s access was revoked.`, 'delete');
+    } catch (err) {
+      toast('Could not remove', err.message || 'Please try again.', 'error');
+    }
+  };
+
+  return (
+    <div className="settings-panel active">
+      <div className="panel" style={{ maxWidth: '620px' }}>
+        <h3>Add Team Member</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Create a login for a team member. They share your company workspace.</p>
+        <div className="grid2">
+          <div className="field-sm"><label>Full Name</label><input value={f.name} onChange={set('name')} placeholder="Jane Smith" /></div>
+          <div className="field-sm"><label>Email</label><input type="email" value={f.email} onChange={set('email')} placeholder="jane@company.com" /></div>
+          <div className="field-sm"><label>Temporary Password</label><input value={f.password} onChange={set('password')} placeholder="Min 6 characters" /></div>
+          <div className="field-sm"><label>Role</label>
+            <select value={f.role} onChange={set('role')}>
+              <option value="staff">Staff — create &amp; edit</option>
+              <option value="worker">Worker — view only</option>
+              <option value="auditor">Auditor — view &amp; reports</option>
+              <option value="admin">Admin — full control</option>
+            </select>
+          </div>
+        </div>
+        <button className="btn btn-small btn-orange" onClick={add}><i className="fa-solid fa-user-plus"></i> Add Member</button>
+
+        <div className="section-gap">
+          <h3>Team Members</h3>
+          <div className="team-list">
+            {teamMembers.length === 0
+              ? <p className="empty-line" style={{ fontSize: '13px' }}>No team members yet.</p>
+              : teamMembers.map((m) => (
+                <div className="team-member" key={m.id}>
+                  <div className="team-avatar">{m.name.charAt(0).toUpperCase()}</div>
+                  <div className="team-info">
+                    <div className="team-name">{m.name}</div>
+                    <div className="team-email">{m.email}</div>
+                  </div>
+                  <span className={'team-role-badge trb-' + m.role}>{ROLE_LABELS[m.role] || m.role}</span>
+                  <button className="team-del" onClick={() => remove(m)} title="Remove"><i className="fa-solid fa-trash-can"></i></button>
+                </div>
+              ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

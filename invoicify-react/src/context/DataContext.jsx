@@ -1,0 +1,254 @@
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { buildInvoiceNumber, DEFAULT_INVOICE_NUMBER_CONFIG } from '../utils/invoiceNumber';
+import { api, setToken, getToken } from '../utils/api';
+
+const DataContext = createContext(null);
+
+// Backend returns Mongo `_id`; the UI historically uses `id`.
+// This adds an `id` alias so both work everywhere.
+function withId(doc) {
+  if (!doc || typeof doc !== 'object') return doc;
+  return { ...doc, id: doc._id || doc.id };
+}
+function withIds(arr) {
+  return (arr || []).map(withId);
+}
+
+export function DataProvider({ children }) {
+  const [currentUser, setCurrentUserRaw] = useState(null);
+  // Always alias Mongo _id -> id so currentUser.id is available everywhere.
+  const setCurrentUser = (u) => setCurrentUserRaw(u && typeof u === 'object' ? withId(u) : u);
+  const [invoices, setInvoices] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [catalogItems, setCatalogItems] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+
+  // Income/expense are still local for now (dashboard-only feature)
+  const [incomes, setIncomes] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+
+  const [loading, setLoading] = useState(true);   // initial "am I logged in?" check
+  const [booting, setBooting] = useState(true);
+
+  const invoiceNumberConfig = currentUser?.invoiceNumberConfig || DEFAULT_INVOICE_NUMBER_CONFIG;
+  const invoiceTemplate = currentUser?.invoiceTemplate || 'classic';
+  const companySignature = currentUser?.company?.signature || null;
+  const currency = currentUser?.company?.currency || 'INR';
+
+  const nextInvoiceNumber = useCallback(
+    () => buildInvoiceNumber(invoiceNumberConfig),
+    [invoiceNumberConfig]
+  );
+
+  // ---- Load all company data after login ----
+  const loadAllData = useCallback(async () => {
+    try {
+      const [inv, cust, items, teamRes] = await Promise.all([
+        api.get('/api/invoices'),
+        api.get('/api/customers'),
+        api.get('/api/items'),
+        api.get('/api/auth/team').catch(() => ({ team: [] }))
+      ]);
+      setInvoices(withIds(inv));
+      setCustomers(withIds(cust));
+      setCatalogItems(withIds(items));
+      setTeamMembers(withIds(teamRes?.team));
+    } catch (err) {
+      console.error('Failed to load data:', err.message);
+    }
+  }, []);
+
+  // ---- On app start: if we have a token, fetch the current user ----
+  useEffect(() => {
+    (async () => {
+      const token = getToken();
+      if (!token) { setBooting(false); setLoading(false); return; }
+      try {
+        const { user } = await api.get('/api/auth/me');
+        setCurrentUser(user);
+        await loadAllData();
+      } catch {
+        setToken(null); // token invalid/expired
+      } finally {
+        setBooting(false);
+        setLoading(false);
+      }
+    })();
+  }, [loadAllData]);
+
+  // ---- Auth ----
+  const registerUser = useCallback(async (data) => {
+    const res = await api.post('/api/auth/register', {
+      firstName: data.firstName, lastName: data.lastName,
+      email: data.email, password: data.password, role: data.role
+    });
+    return res.user; // does NOT auto-login (matches original flow: go to login)
+  }, []);
+
+  const login = useCallback(async (email, password) => {
+    const res = await api.post('/api/auth/login', { email, password });
+    setToken(res.token);
+    setCurrentUser(res.user);
+    await loadAllData();
+    return res.user;
+  }, [loadAllData]);
+
+  const logout = useCallback(() => {
+    setToken(null);
+    setCurrentUser(null);
+    setInvoices([]); setCustomers([]); setCatalogItems([]); setTeamMembers([]);
+  }, []);
+
+  const deleteAccount = useCallback(async (deleteData) => {
+    await api.del(`/api/auth/account${deleteData ? '?deleteData=true' : ''}`);
+    logout();
+  }, [logout]);
+
+  const updateCurrentUser = useCallback(async (patch) => {
+    // Decide which backend endpoint based on what's being updated
+    try {
+      if ('firstName' in patch || 'lastName' in patch || 'email' in patch || 'avatar' in patch) {
+        const { user } = await api.put('/api/auth/profile', patch);
+        setCurrentUser(user);
+        return user;
+      }
+      // company / onboarding / preferences
+      const payload = {};
+      if ('company' in patch) payload.company = patch.company;
+      if ('onboarded' in patch) payload.onboarded = patch.onboarded;
+      if ('invoiceTemplate' in patch) payload.invoiceTemplate = patch.invoiceTemplate;
+      if ('invoiceNumberConfig' in patch) payload.invoiceNumberConfig = patch.invoiceNumberConfig;
+      if ('companySignature' in patch) payload.companySignature = patch.companySignature;
+      if ('companyId' in patch) payload.company = patch.company || currentUser?.company;
+      const { user } = await api.put('/api/auth/company', payload);
+      setCurrentUser(user);
+      return user;
+    } catch (err) {
+      console.error('Update user failed:', err.message);
+      throw err;
+    }
+  }, [currentUser]);
+
+  // ---- Invoices ----
+  const addInvoice = useCallback(async (invoice) => {
+    const created = await api.post('/api/invoices', invoice);
+    setInvoices((prev) => [...prev, withId(created)]);
+    // bump next invoice number
+    const cfg = currentUser?.invoiceNumberConfig || DEFAULT_INVOICE_NUMBER_CONFIG;
+    api.put('/api/auth/company', { invoiceNumberConfig: { ...cfg, next: (cfg.next || 1) + 1 } })
+      .then(({ user }) => setCurrentUser(user)).catch(() => {});
+    return created;
+  }, [currentUser]);
+
+  const updateInvoice = useCallback(async (id, patch) => {
+    const updated = await api.put(`/api/invoices/${id}`, patch);
+    setInvoices((prev) => prev.map((i) => ((i._id === id || i.id === id) ? withId(updated) : i)));
+    return updated;
+  }, []);
+
+  const deleteInvoice = useCallback(async (id) => {
+    await api.del(`/api/invoices/${id}`);
+    setInvoices((prev) => prev.filter((i) => i._id !== id && i.id !== id));
+  }, []);
+
+  const duplicateInvoice = useCallback(async (id) => {
+    const inv = invoices.find((i) => i._id === id || i.id === id);
+    if (!inv) return;
+    const cfg = currentUser?.invoiceNumberConfig || DEFAULT_INVOICE_NUMBER_CONFIG;
+    const copy = {
+      number: buildInvoiceNumber(cfg),
+      orderNumber: inv.orderNumber, date: new Date().toISOString().slice(0, 10),
+      dueDate: inv.dueDate, client: inv.client, status: 'Draft',
+      total: inv.total, snapshot: inv.snapshot, payments: []
+    };
+    const created = await api.post('/api/invoices', copy);
+    setInvoices((prev) => [...prev, withId(created)]);
+    api.put('/api/auth/company', { invoiceNumberConfig: { ...cfg, next: (cfg.next || 1) + 1 } })
+      .then(({ user }) => setCurrentUser(user)).catch(() => {});
+  }, [invoices, currentUser]);
+
+  // ---- Customers ----
+  const addCustomer = useCallback(async (c) => {
+    const created = await api.post('/api/customers', c);
+    setCustomers((prev) => [...prev, withId(created)]);
+    return created;
+  }, []);
+  const updateCustomer = useCallback(async (id, patch) => {
+    const updated = await api.put(`/api/customers/${id}`, patch);
+    setCustomers((prev) => prev.map((c) => ((c._id === id || c.id === id) ? withId(updated) : c)));
+  }, []);
+  const deleteCustomers = useCallback(async (ids) => {
+    await Promise.all(ids.map((id) => api.del(`/api/customers/${id}`)));
+    setCustomers((prev) => prev.filter((c) => !ids.includes(c._id) && !ids.includes(c.id)));
+  }, []);
+
+  // ---- Items ----
+  const addItem = useCallback(async (it) => {
+    const created = await api.post('/api/items', it);
+    setCatalogItems((prev) => [...prev, withId(created)]);
+    return created;
+  }, []);
+  const updateItem = useCallback(async (id, patch) => {
+    const updated = await api.put(`/api/items/${id}`, patch);
+    setCatalogItems((prev) => prev.map((i) => ((i._id === id || i.id === id) ? withId(updated) : i)));
+  }, []);
+  const deleteItems = useCallback(async (ids) => {
+    await Promise.all(ids.map((id) => api.del(`/api/items/${id}`)));
+    setCatalogItems((prev) => prev.filter((i) => !ids.includes(i._id) && !ids.includes(i.id)));
+  }, []);
+
+  // ---- Income / Expense (local only for now) ----
+  const addIncome = useCallback((entry) => setIncomes((prev) => [...prev, entry]), []);
+  const deleteIncome = useCallback((id) => setIncomes((prev) => prev.filter((e) => e.id !== id)), []);
+  const addExpense = useCallback((entry) => setExpenses((prev) => [...prev, entry]), []);
+  const deleteExpense = useCallback((id) => setExpenses((prev) => prev.filter((e) => e.id !== id)), []);
+
+  // ---- Team ----
+  const loadTeam = useCallback(async () => {
+    try {
+      const { team } = await api.get('/api/auth/team');
+      setTeamMembers(withIds(team));
+    } catch { /* ignore */ }
+  }, []);
+
+  const addTeamMember = useCallback(async (member) => {
+    const { member: created } = await api.post('/api/auth/team', member);
+    setTeamMembers((prev) => [...prev, withId(created)]);
+    return created;
+  }, []);
+  const removeTeamMember = useCallback(async (id) => {
+    await api.del(`/api/auth/team/${id}`);
+    setTeamMembers((prev) => prev.filter((x) => x._id !== id && x.id !== id));
+  }, []);
+
+  // Preference setters (persist to backend)
+  const setInvoiceTemplate = useCallback((tpl) => updateCurrentUser({ invoiceTemplate: tpl }), [updateCurrentUser]);
+  const setInvoiceNumberConfig = useCallback((cfg) => updateCurrentUser({ invoiceNumberConfig: cfg }), [updateCurrentUser]);
+  const setCompanySignature = useCallback((sig) => updateCurrentUser({ companySignature: sig }), [updateCurrentUser]);
+
+  const value = {
+    currentUser, setCurrentUser, updateCurrentUser,
+    booting,
+    invoices, addInvoice, updateInvoice, deleteInvoice, duplicateInvoice,
+    customers, addCustomer, updateCustomer, deleteCustomers,
+    catalogItems, addItem, updateItem, deleteItems,
+    incomes, addIncome, deleteIncome,
+    expenses, addExpense, deleteExpense,
+    teamMembers, addTeamMember, removeTeamMember,
+    invoiceNumberConfig, setInvoiceNumberConfig, nextInvoiceNumber,
+    invoiceTemplate, setInvoiceTemplate,
+    companySignature, setCompanySignature,
+    currency,
+    registerUser, login, logout, deleteAccount,
+    // legacy: some components read `users`; keep an empty stub to avoid crashes
+    users: []
+  };
+
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+}
+
+export function useData() {
+  const ctx = useContext(DataContext);
+  if (!ctx) throw new Error('useData must be used within DataProvider');
+  return ctx;
+}
