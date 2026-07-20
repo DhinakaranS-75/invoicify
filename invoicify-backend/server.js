@@ -25,8 +25,13 @@ const app = express();
 const allowedOrigin = (origin, callback) => {
   // Requests with no origin (mobile apps, curl, same-origin) are allowed
   if (!origin) return callback(null, true);
-  const ok = /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+):\d+$/.test(origin)
-    || origin === process.env.CLIENT_URL;
+  const ok =
+    // localhost + local-network IPs (dev / phone on same WiFi)
+    /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+):\d+$/.test(origin)
+    // the configured production frontend
+    || origin === process.env.CLIENT_URL
+    // any Vercel deployment (production + preview URLs)
+    || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
   callback(null, ok);
 };
 app.use(cors({ origin: allowedOrigin, credentials: true }));
