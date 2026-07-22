@@ -32,7 +32,7 @@ export async function register(req, res) {
     const user = await User.create({
       name: `${firstName} ${lastName || ''}`.trim(),
       firstName, lastName, email, password,
-      role: role || 'admin',
+      role: 'admin', // self-registered accounts are always the company admin
       onboarded: false
     });
     res.status(201).json({

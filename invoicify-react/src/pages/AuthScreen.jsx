@@ -145,14 +145,6 @@ function RegisterForm({ goTo }) {
           <i className={'fa-solid ' + (showConfirm ? 'fa-eye-slash' : 'fa-eye')}></i>
         </button>
       </Field>
-      <Field label="Role">
-        <select value={f.role} onChange={set('role')}>
-          <option value="admin">Admin — full control</option>
-          <option value="staff">Staff — create &amp; edit</option>
-          <option value="worker">Worker — view only</option>
-          <option value="auditor">Auditor — view &amp; reports</option>
-        </select>
-      </Field>
       <button className="btn btn-orange btn-block" onClick={submit}>Signup</button>
       <div className="auth-links">Already have an account? <a onClick={() => goTo('login')}>Login</a></div>
     </>
