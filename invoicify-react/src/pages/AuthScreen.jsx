@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { isValidEmail } from '../utils/format';
 import { api } from '../utils/api';
 import OtpInput from '../components/OtpInput';
+import PasswordStrength from '../components/PasswordStrength';
 
 export default function AuthScreen() {
   const [view, setView] = useState('login'); // login | register | forgot | reset | setpw
@@ -154,6 +155,7 @@ function RegisterForm({ goTo }) {
           <i className={'fa-solid ' + (showPw ? 'fa-eye-slash' : 'fa-eye')}></i>
         </button>
       </Field>
+      <PasswordStrength password={f.password} />
       <Field label="Confirm Password" error={errors.confirm} shake={shake}>
         <input className={errors.confirm ? 'invalid' : ''} type={showConfirm ? 'text' : 'password'} value={f.confirm} onChange={set('confirm')} placeholder="Re-enter password" />
         <button type="button" className="toggle-eye" onClick={() => setShowConfirm((s) => !s)}>
@@ -246,6 +248,7 @@ function ResetForm({ goTo, resetEmail }) {
           <i className={'fa-solid ' + (showPw ? 'fa-eye-slash' : 'fa-eye')}></i>
         </button>
       </Field>
+      <PasswordStrength password={pw} />
       <Field label="Confirm Password" error={error}>
         <input type={showConfirm ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Re-enter password" />
         <button type="button" className="toggle-eye" onClick={() => setShowConfirm((s) => !s)}>
@@ -307,6 +310,7 @@ function SetPasswordForm({ goTo, pending }) {
           <i className={'fa-solid ' + (showPw ? 'fa-eye-slash' : 'fa-eye')}></i>
         </button>
       </Field>
+      <PasswordStrength password={pw} />
       <Field label="Confirm Password" error={error}>
         <input type={showConfirm ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Re-enter password" />
         <button type="button" className="toggle-eye" onClick={() => setShowConfirm((s) => !s)}>

@@ -1246,3 +1246,23 @@
   html[data-theme="dark"] .invite-summary{background:#23264f;}
   html[data-theme="dark"] .invite-row{border-bottom-color:#34376b;}
   html[data-theme="dark"] .invite-row strong{color:#eceefc;}
+
+  /* ---- Password strength meter ---- */
+  .pw-strength{margin:-6px 0 14px;}
+  .pw-bar{height:5px;border-radius:4px;background:var(--line);overflow:hidden;}
+  .pw-bar-fill{height:100%;border-radius:4px;transition:width .25s ease,background .25s ease;}
+  .pw-meta{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:6px;}
+  .pw-label{font-size:11.5px;font-weight:700;flex:none;}
+  .pw-hint{font-size:11px;color:var(--muted);text-align:right;line-height:1.4;}
+  .pw-bar-fill.pw-lvl-0{background:var(--danger);}
+  .pw-bar-fill.pw-lvl-1{background:#e8743b;}
+  .pw-bar-fill.pw-lvl-2{background:#e0a92b;}
+  .pw-bar-fill.pw-lvl-3{background:#3fa89a;}
+  .pw-bar-fill.pw-lvl-4{background:#17b3a3;}
+  .pw-label.pw-lvl-0{color:var(--danger);}
+  .pw-label.pw-lvl-1{color:#c4571f;}
+  .pw-label.pw-lvl-2{color:#a67c14;}
+  .pw-label.pw-lvl-3{color:#0f8478;}
+  .pw-label.pw-lvl-4{color:#0f8478;}
+  html[data-theme="dark"] .pw-bar{background:#34376b;}
+  html[data-theme="dark"] .pw-hint{color:#9fa1cf;}

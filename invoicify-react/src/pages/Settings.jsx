@@ -370,6 +370,8 @@ function TeamTab() {
   const [f, setF] = useState({ name: '', email: '', role: 'staff' });
   const [lastInvite, setLastInvite] = useState(null); // { email, link }
   const [busy, setBusy] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null); // member awaiting confirmation
+  const [removing, setRemoving] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   const add = async () => {
@@ -398,12 +400,30 @@ function TeamTab() {
     }
   };
 
-  const remove = async (m) => {
+  // Step 1: clicking the bin only opens the confirmation dialog.
+  const askRemove = (m) => setPendingDelete(m);
+
+  // Step 2: actually delete once confirmed.
+  const confirmRemove = async () => {
+    const m = pendingDelete;
+    if (!m) return;
+    const id = m._id || m.id;
+    if (!id) {
+      toast('Could not remove', 'This member has no ID — refresh the page and try again.', 'error');
+      setPendingDelete(null);
+      return;
+    }
+    setRemoving(true);
     try {
-      await removeTeamMember(m._id || m.id);
+      await removeTeamMember(id);
       toast('Member removed', `${m.name}'s access was revoked.`, 'delete');
+      setPendingDelete(null);
     } catch (err) {
+      console.error('[Invoicify] remove team member failed:', err);
       toast('Could not remove', err.message || 'Please try again.', 'error');
+      setPendingDelete(null);
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -487,10 +507,32 @@ function TeamTab() {
                         <i className="fa-solid fa-rotate-right"></i>
                       </button>
                     )}
-                    <button className="team-del" onClick={() => remove(m)} title="Remove"><i className="fa-solid fa-trash-can"></i></button>
+                    <button className="team-del" onClick={() => askRemove(m)} title="Remove"><i className="fa-solid fa-trash-can"></i></button>
                   </div>
                 );
               })}
+          </div>
+        </div>
+      </div>
+
+      {/* Remove-member confirmation */}
+      <div className={'confirm-overlay' + (pendingDelete ? ' show' : '')}
+           onClick={(e) => { if (e.target === e.currentTarget && !removing) setPendingDelete(null); }}>
+        <div className="confirm-box">
+          <div className="confirm-icon"><i className="fa-solid fa-user-minus"></i></div>
+          <h3>Remove {pendingDelete?.name}?</h3>
+          <p>
+            {pendingDelete?.email} will lose access to this company immediately.
+            Invoices and customers they created stay in the account. This can't be undone.
+          </p>
+          <div className="confirm-actions">
+            <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }}
+                    onClick={confirmRemove} disabled={removing}>
+              <i className="fa-solid fa-trash-can"></i> {removing ? 'Removing…' : 'Remove'}
+            </button>
+            <button className="btn btn-small btn-outline" onClick={() => setPendingDelete(null)} disabled={removing}>
+              Cancel
+            </button>
           </div>
         </div>
       </div>

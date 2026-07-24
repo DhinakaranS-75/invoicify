@@ -1,8 +1,17 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { buildInvoiceNumber, DEFAULT_INVOICE_NUMBER_CONFIG } from '../utils/invoiceNumber';
-import { api, setToken, getToken } from '../utils/api';
+import { api, setToken, getToken, setUnauthorizedHandler } from '../utils/api';
+import { useToast } from './ToastContext';
 
 const DataContext = createContext(null);
+
+// Auto-logout after this much inactivity, with a warning shortly before.
+const IDLE_LIMIT_MS = 15 * 60 * 1000; // 15 minutes
+const IDLE_WARN_MS = 60 * 1000;       // warn for the final 60 seconds
+
+// How often to quietly re-fetch shared company data so changes made by
+// team members show up without a manual page refresh.
+const AUTO_REFRESH_MS = 30 * 1000;   // 30 seconds
 
 // Backend returns Mongo `_id`; the UI historically uses `id`.
 // This adds an `id` alias so both work everywhere.
@@ -15,7 +24,15 @@ function withIds(arr) {
 }
 
 export function DataProvider({ children }) {
+  const { toast } = useToast();
   const [currentUser, setCurrentUserRaw] = useState(null);
+  // Seconds left before an idle logout (null = no warning showing)
+  const [idleCountdown, setIdleCountdown] = useState(null);
+  const lastActivityRef = useRef(Date.now());
+  const warningShownRef = useRef(false);
+  // When the background sync last succeeded (null until the first one)
+  const [lastSynced, setLastSynced] = useState(null);
+  const syncingRef = useRef(false);
   // Always alias Mongo _id -> id so currentUser.id is available everywhere.
   const setCurrentUser = (u) => setCurrentUserRaw(u && typeof u === 'object' ? withId(u) : u);
   const [invoices, setInvoices] = useState([]);
@@ -102,7 +119,107 @@ export function DataProvider({ children }) {
     setToken(null);
     setCurrentUser(null);
     setInvoices([]); setCustomers([]); setCatalogItems([]); setTeamMembers([]);
+    setIdleCountdown(null);
+    warningShownRef.current = false;
   }, []);
+
+  // Dismiss the idle warning and start the clock again.
+  const stayLoggedIn = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    warningShownRef.current = false;
+    setIdleCountdown(null);
+  }, []);
+
+  // --- Expired/invalid token anywhere in the app -> clean logout ----------
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      logout();
+      toast('Session expired', 'Please log in again.', 'error');
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [logout, toast]);
+
+  // --- Background auto-refresh -------------------------------------------
+  // Team members share a companyId, so anything HAPPY adds belongs to the
+  // same company. This quietly re-fetches it so the admin sees new invoices,
+  // customers and items without pressing F5.
+  //
+  // Deliberately quiet: failures are logged, never toasted, and the poll is
+  // skipped while the tab is hidden or a previous sync is still running.
+  // It does NOT count as user activity, so it can't defeat the idle logout.
+  useEffect(() => {
+    if (!currentUser) return undefined;
+
+    const sync = async () => {
+      if (syncingRef.current) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      syncingRef.current = true;
+      try {
+        await loadAllData();
+        setLastSynced(new Date());
+      } catch (err) {
+        console.error('[Invoicify] background sync failed:', err.message);
+      } finally {
+        syncingRef.current = false;
+      }
+    };
+
+    const timer = setInterval(sync, AUTO_REFRESH_MS);
+    // Coming back to the tab? Refresh straight away rather than waiting.
+    const onVisible = () => { if (document.visibilityState === 'visible') sync(); };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [currentUser, loadAllData]);
+
+  // --- Idle auto-logout ---------------------------------------------------
+  // Any real interaction pushes the deadline back. Once the warning is
+  // showing, stray mouse movement no longer counts — the user has to click
+  // "Stay logged in", otherwise the logout goes ahead.
+  useEffect(() => {
+    if (!currentUser) return undefined;
+
+    lastActivityRef.current = Date.now();
+    warningShownRef.current = false;
+
+    const bump = () => {
+      if (!warningShownRef.current) lastActivityRef.current = Date.now();
+    };
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
+
+    // Works off real elapsed time, never a tick count, so it stays correct
+    // even when the browser throttles or freezes timers in a background tab.
+    const check = () => {
+      const left = IDLE_LIMIT_MS - (Date.now() - lastActivityRef.current);
+      if (left <= 0) {
+        logout();
+        toast('Signed out', 'You were inactive for 15 minutes.', 'error');
+      } else if (left <= IDLE_WARN_MS) {
+        warningShownRef.current = true;
+        setIdleCountdown(Math.ceil(left / 1000));
+      }
+    };
+
+    const tick = setInterval(check, 1000);
+
+    // Chrome heavily throttles (and can fully freeze) timers in a background
+    // tab, so the interval alone can miss the deadline. Re-check the moment
+    // the tab becomes visible again and log out if the time has already gone.
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', check);
+
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, bump));
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', check);
+      clearInterval(tick);
+    };
+  }, [currentUser, logout, toast]);
 
   const deleteAccount = useCallback(async (deleteData) => {
     await api.del(`/api/auth/account${deleteData ? '?deleteData=true' : ''}`);
@@ -250,7 +367,8 @@ export function DataProvider({ children }) {
     invoiceTemplate, setInvoiceTemplate,
     companySignature, setCompanySignature,
     currency,
-    registerUser, login, logout, deleteAccount,
+    registerUser, login, logout, deleteAccount, idleCountdown, stayLoggedIn,
+    lastSynced, refreshNow: loadAllData,
     // legacy: some components read `users`; keep an empty stub to avoid crashes
     users: []
   };

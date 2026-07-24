@@ -29,10 +29,25 @@ export function getToken() {
   return authToken;
 }
 
+// --- Session-expiry hook -----------------------------------------------
+// DataContext registers a callback here. Any 401 coming back from a request
+// that DID carry a token means the token is expired/invalid, so the app logs
+// out cleanly instead of leaving the user on a half-broken screen.
+let onUnauthorized = null;
+export function setUnauthorizedHandler(fn) {
+  onUnauthorized = fn;
+}
+
+// Endpoints where a 401 is a normal answer (wrong password etc.), not an
+// expired session — these must never trigger an auto-logout.
+const PUBLIC_AUTH_PATHS = ['/api/auth/login', '/api/auth/register'];
+
 // Core request function. Automatically attaches JSON headers + auth token.
 async function request(path, { method = 'GET', body } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+  const hadToken = !!authToken;
 
   let res;
   try {
@@ -50,6 +65,12 @@ async function request(path, { method = 'GET', body } = {}) {
   const text = await res.text();
   if (text) {
     try { data = JSON.parse(text); } catch { data = { message: text }; }
+  }
+
+  if (res.status === 401 && hadToken && !PUBLIC_AUTH_PATHS.some((p) => path.startsWith(p))) {
+    // Session is gone — tell the app to log out.
+    if (onUnauthorized) onUnauthorized();
+    throw new Error('Your session has expired. Please log in again.');
   }
 
   if (!res.ok) {
