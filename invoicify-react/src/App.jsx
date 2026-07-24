@@ -9,6 +9,7 @@ import Onboarding from './pages/Onboarding';
 import BootSplash from './components/BootSplash';
 import InviteAccept from './pages/InviteAccept';
 import IdleWarning from './components/IdleWarning';
+import InstallPrompt from './components/InstallPrompt';
 
 function Root() {
   const { currentUser, booting } = useData();
@@ -25,10 +26,10 @@ function Root() {
   if (!currentUser) return <AuthScreen />;
 
   // Logged in but hasn't completed company onboarding -> onboarding
-  if (!currentUser.onboarded) return <><Onboarding /><IdleWarning /></>;
+  if (!currentUser.onboarded) return <><Onboarding /><IdleWarning /><InstallPrompt /></>;
 
   // Logged in and onboarded -> main app
-  return <><AppShell /><IdleWarning /></>;
+  return <><AppShell /><IdleWarning /><InstallPrompt /></>;
 }
 
 export default function App() {
