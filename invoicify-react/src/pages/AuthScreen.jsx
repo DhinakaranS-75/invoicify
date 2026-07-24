@@ -7,8 +7,10 @@ import { api } from '../utils/api';
 import OtpInput from '../components/OtpInput';
 
 export default function AuthScreen() {
-  const [view, setView] = useState('login'); // login | register | forgot | reset
+  const [view, setView] = useState('login'); // login | register | forgot | reset | setpw
   const [resetEmail, setResetEmail] = useState('');
+  // Credentials of an invited member who just logged in with a temporary password
+  const [pending, setPending] = useState(null);
   return (
     <div className="auth-screen" id="auth-screen">
       <div className="blob b1"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#17b3a3" /></svg></div>
@@ -17,10 +19,11 @@ export default function AuthScreen() {
       <div className="blob b4"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#f2703c" /></svg></div>
 
       <div className={'auth-card' + (view === 'register' ? ' wide' : '')}>
-        {view === 'login' && <LoginForm goTo={setView} />}
+        {view === 'login' && <LoginForm goTo={setView} setPending={setPending} />}
         {view === 'register' && <RegisterForm goTo={setView} />}
         {view === 'forgot' && <ForgotForm goTo={setView} setResetEmail={setResetEmail} />}
         {view === 'reset' && <ResetForm goTo={setView} resetEmail={resetEmail} />}
+        {view === 'setpw' && <SetPasswordForm goTo={setView} pending={pending} />}
       </div>
     </div>
   );
@@ -36,7 +39,7 @@ function Field({ label, children, error, shake }) {
   );
 }
 
-function LoginForm({ goTo }) {
+function LoginForm({ goTo, setPending }) {
   const { login } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -54,9 +57,19 @@ function LoginForm({ goTo }) {
     if (Object.keys(errs).length) { setErrors(errs); doShake(); return; }
     setErrors({});
     try {
-      const user = await login(email, password);
+      const res = await login(email, password);
+
+      // Invited member logging in with their temporary password:
+      // don't sign them in — make them choose their own password first.
+      if (res?.mustResetPassword) {
+        setPending({ email: email.trim(), tempPassword: password, name: res.name });
+        toast('Almost there', 'Temporary password accepted — now choose your own password.');
+        goTo('setpw');
+        return;
+      }
+
       navigate('/home', { replace: true });
-      toast('Welcome back', `Signed in as ${user.name}.`);
+      toast('Welcome back', `Signed in as ${res.user.name}.`);
     } catch (err) {
       setErrors({ both: true, password: 'Invalid email or password.' });
       doShake();
@@ -87,7 +100,7 @@ function LoginForm({ goTo }) {
 function RegisterForm({ goTo }) {
   const { registerUser } = useData();
   const { toast } = useToast();
-  const [f, setF] = useState({ firstName: '', lastName: '', email: '', password: '', confirm: '', role: 'admin' });
+  const [f, setF] = useState({ firstName: '', lastName: '', email: '', password: '', confirm: '' });
   const [errors, setErrors] = useState({});
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -105,9 +118,11 @@ function RegisterForm({ goTo }) {
     setErrors(errs);
     if (Object.keys(errs).length) { doShake(); return; }
     try {
+      // No role is sent: anyone who signs up is the company Admin (full control).
+      // Everyone else joins through Settings -> Team Members as an invite.
       await registerUser({
         firstName: f.firstName, lastName: f.lastName,
-        email: f.email, password: f.password, role: f.role
+        email: f.email, password: f.password
       });
       toast('Account created', 'You can now log in.');
       goTo('login');
@@ -243,6 +258,65 @@ function ResetForm({ goTo, resetEmail }) {
       <div className="auth-links">
         <a onClick={() => goTo('forgot')}>Resend code</a> · <a onClick={() => goTo('login')}>Back to login</a>
       </div>
+    </>
+  );
+}
+
+function SetPasswordForm({ goTo, pending }) {
+  const { toast } = useToast();
+  const [pw, setPw] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    if (pw.length < 8) { setError('Min 8 characters.'); return; }
+    if (pw !== confirm) { setError('Passwords do not match.'); return; }
+    if (pending?.tempPassword && pw === pending.tempPassword) {
+      setError('Choose a password different from the temporary one.'); return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      await api.post('/api/auth/set-password', {
+        email: pending?.email,
+        tempPassword: pending?.tempPassword,
+        newPassword: pw
+      });
+      toast('Password set', 'Now log in with your new password.');
+      goTo('login');
+    } catch (err) {
+      setError(err.message || 'Could not set your password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <h1 className="auth-title">Choose your password</h1>
+      <p className="auth-sub">
+        Welcome{pending?.name ? `, ${pending.name.split(' ')[0]}` : ''}! Your temporary password works only once —
+        set your own password to finish setting up your account.
+      </p>
+      <Field label="New Password">
+        <input type={showPw ? 'text' : 'password'} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Min 8 characters" />
+        <button type="button" className="toggle-eye" onClick={() => setShowPw((s) => !s)}>
+          <i className={'fa-solid ' + (showPw ? 'fa-eye-slash' : 'fa-eye')}></i>
+        </button>
+      </Field>
+      <Field label="Confirm Password" error={error}>
+        <input type={showConfirm ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Re-enter password" />
+        <button type="button" className="toggle-eye" onClick={() => setShowConfirm((s) => !s)}>
+          <i className={'fa-solid ' + (showConfirm ? 'fa-eye-slash' : 'fa-eye')}></i>
+        </button>
+      </Field>
+      <button className="btn btn-orange btn-block" onClick={submit} disabled={loading}>
+        {loading ? 'Saving…' : 'Set Password & Continue'}
+      </button>
+      <div className="auth-links"><a onClick={() => goTo('login')}>Back to login</a></div>
     </>
   );
 }

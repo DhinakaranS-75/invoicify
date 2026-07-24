@@ -365,21 +365,36 @@ function PreferencesTab() {
 }
 
 function TeamTab() {
-  const { teamMembers, addTeamMember, removeTeamMember } = useData();
+  const { teamMembers, addTeamMember, removeTeamMember, resendInvite } = useData();
   const { toast } = useToast();
-  const [f, setF] = useState({ name: '', email: '', password: '', role: 'staff' });
+  const [f, setF] = useState({ name: '', email: '', role: 'staff' });
+  const [lastInvite, setLastInvite] = useState(null); // { email, link }
+  const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   const add = async () => {
     if (f.name.trim().length < 1) { toast('Name required', 'Enter the member name.', 'error'); return; }
     if (!isValidEmail(f.email)) { toast('Invalid email', 'Enter a valid email.', 'error'); return; }
-    if (f.password.length < 6) { toast('Weak password', 'Min 6 characters.', 'error'); return; }
+    setBusy(true);
     try {
-      await addTeamMember({ name: f.name.trim(), email: f.email, password: f.password, role: f.role });
-      setF({ name: '', email: '', password: '', role: 'staff' });
-      toast('Member added', `${f.name} can now log in.`);
+      const res = await addTeamMember({ name: f.name.trim(), email: f.email.trim(), role: f.role });
+      setLastInvite({ email: f.email.trim(), link: res?.inviteLink || '' });
+      toast('Invitation sent', `${f.name.trim()} must accept the email before they can log in.`);
+      setF({ name: '', email: '', role: 'staff' });
     } catch (err) {
-      toast('Could not add member', err.message || 'Please try again.', 'error');
+      toast('Could not invite', err.message || 'Please try again.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resend = async (m) => {
+    try {
+      const res = await resendInvite(m._id || m.id);
+      if (res?.inviteLink) setLastInvite({ email: m.email, link: res.inviteLink });
+      toast('Sent', res?.message || 'Email re-sent.');
+    } catch (err) {
+      toast('Could not resend', err.message || 'Please try again.', 'error');
     }
   };
 
@@ -392,15 +407,35 @@ function TeamTab() {
     }
   };
 
+  const copyLink = async () => {
+    if (!lastInvite?.link) return;
+    try {
+      await navigator.clipboard.writeText(lastInvite.link);
+      toast('Copied', 'Invitation link copied to clipboard.');
+    } catch {
+      toast('Copy failed', 'Select the link and copy it manually.', 'error');
+    }
+  };
+
+  // 'invited'  = waiting for the member to click Accept in their email
+  // 'accepted' = accepted, using the temporary password, hasn't set their own yet
+  const statusOf = (m) => {
+    if (m.status === 'invited') return { cls: 'ts-invited', icon: 'fa-paper-plane', label: 'Invite sent' };
+    if (m.status === 'accepted' || m.mustResetPassword) return { cls: 'ts-pending', icon: 'fa-key', label: 'Password pending' };
+    return { cls: 'ts-active', icon: 'fa-circle-check', label: 'Active' };
+  };
+
   return (
     <div className="settings-panel active">
       <div className="panel" style={{ maxWidth: '620px' }}>
-        <h3>Add Team Member</h3>
-        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Create a login for a team member. They share your company workspace.</p>
+        <h3>Invite Team Member</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>
+          They'll get an email to accept the invitation. You don't set a password — Invoicify emails them a
+          temporary one once they accept.
+        </p>
         <div className="grid2">
           <div className="field-sm"><label>Full Name</label><input value={f.name} onChange={set('name')} placeholder="Jane Smith" /></div>
           <div className="field-sm"><label>Email</label><input type="email" value={f.email} onChange={set('email')} placeholder="jane@company.com" /></div>
-          <div className="field-sm"><label>Temporary Password</label><input value={f.password} onChange={set('password')} placeholder="Min 6 characters" /></div>
           <div className="field-sm"><label>Role</label>
             <select value={f.role} onChange={set('role')}>
               <option value="staff">Staff — create &amp; edit</option>
@@ -410,24 +445,52 @@ function TeamTab() {
             </select>
           </div>
         </div>
-        <button className="btn btn-small btn-orange" onClick={add}><i className="fa-solid fa-user-plus"></i> Add Member</button>
+        <button className="btn btn-small btn-orange" onClick={add} disabled={busy}>
+          <i className="fa-solid fa-paper-plane"></i> {busy ? 'Sending…' : 'Send Invitation'}
+        </button>
+
+        <div className="team-hint">
+          <i className="fa-solid fa-circle-info"></i>
+          <span>Accept &rarr; temporary password emailed &rarr; they set their own password on first login.</span>
+        </div>
+
+        {lastInvite && (
+          <div className="invite-link-box">
+            <div className="ilb-title"><i className="fa-solid fa-link"></i> Invitation link for {lastInvite.email}</div>
+            <div className="ilb-url">{lastInvite.link}</div>
+            <div className="ilb-actions">
+              <button className="btn btn-small btn-ghost" onClick={copyLink}><i className="fa-regular fa-copy"></i> Copy link</button>
+              <button className="btn btn-small btn-ghost" onClick={() => setLastInvite(null)}>Dismiss</button>
+            </div>
+            <div className="ilb-note">Share this only if the email didn't arrive — it works once and expires in 7 days.</div>
+          </div>
+        )}
 
         <div className="section-gap">
           <h3>Team Members</h3>
           <div className="team-list">
             {teamMembers.length === 0
               ? <p className="empty-line" style={{ fontSize: '13px' }}>No team members yet.</p>
-              : teamMembers.map((m) => (
-                <div className="team-member" key={m.id}>
-                  <div className="team-avatar">{m.name.charAt(0).toUpperCase()}</div>
-                  <div className="team-info">
-                    <div className="team-name">{m.name}</div>
-                    <div className="team-email">{m.email}</div>
+              : teamMembers.map((m) => {
+                const st = statusOf(m);
+                return (
+                  <div className="team-member" key={m.id}>
+                    <div className="team-avatar">{(m.name || '?').charAt(0).toUpperCase()}</div>
+                    <div className="team-info">
+                      <div className="team-name">{m.name}</div>
+                      <div className="team-email">{m.email}</div>
+                      <div className={'team-status ' + st.cls}><i className={'fa-solid ' + st.icon}></i> {st.label}</div>
+                    </div>
+                    <span className={'team-role-badge trb-' + m.role}>{ROLE_LABELS[m.role] || m.role}</span>
+                    {st.cls !== 'ts-active' && (
+                      <button className="team-resend" onClick={() => resend(m)} title="Resend email">
+                        <i className="fa-solid fa-rotate-right"></i>
+                      </button>
+                    )}
+                    <button className="team-del" onClick={() => remove(m)} title="Remove"><i className="fa-solid fa-trash-can"></i></button>
                   </div>
-                  <span className={'team-role-badge trb-' + m.role}>{ROLE_LABELS[m.role] || m.role}</span>
-                  <button className="team-del" onClick={() => remove(m)} title="Remove"><i className="fa-solid fa-trash-can"></i></button>
-                </div>
-              ))}
+                );
+              })}
           </div>
         </div>
       </div>

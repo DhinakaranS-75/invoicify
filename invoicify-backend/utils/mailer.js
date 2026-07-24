@@ -78,6 +78,96 @@ export async function sendResetOtp(email, otp) {
   console.log(`[Invoicify] Reset code emailed to ${email}`);
 }
 
+// Shared branded wrapper so every Invoicify email looks the same.
+function shell(innerHtml) {
+  return `
+  <div style="background:#f4f4fb;padding:28px 12px;font-family:Arial,Helvetica,sans-serif;">
+    <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(27,28,51,.10);">
+      <div style="height:6px;background:linear-gradient(90deg,#2b2f77 0 55%,#f2703c 55% 78%,#17b3a3 78% 100%);"></div>
+      <div style="padding:32px 30px 28px;">
+        <div style="font-size:24px;font-weight:800;color:#2b2f77;letter-spacing:.5px;margin:0 0 4px;">Invoicify</div>
+        ${innerHtml}
+      </div>
+      <div style="background:#fafafe;border-top:1px solid #eee;padding:16px 30px;text-align:center;">
+        <div style="font-size:12px;color:#aaa;">Sent by Invoicify · This is an automated message, please don't reply.</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+const ROLE_TEXT = {
+  admin: 'Admin — full control',
+  staff: 'Staff — create & edit',
+  worker: 'Worker — view only',
+  auditor: 'Auditor — view & reports'
+};
+
+// STEP 1 of the team flow: "you've been invited, click to accept".
+// Until this link is clicked the member CANNOT log in.
+export async function sendTeamInvite({ email, name, role, companyName, invitedBy, link }) {
+  const t = getTransporter();
+  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
+  const org = companyName || 'their company';
+  const roleLine = ROLE_TEXT[role] || role;
+
+  const subject = `You've been invited to join ${org} on Invoicify`;
+  const text = `Hi ${name || 'there'}, ${invitedBy || 'an admin'} invited you to join ${org} on Invoicify as ${roleLine}. Accept your invitation here: ${link}\n\nThis link expires in 7 days. Once you accept, we'll email you a temporary password to log in with.`;
+  const html = shell(`
+        <div style="font-size:15px;font-weight:700;color:#2b2f77;margin:18px 0 6px;">You're invited to join ${org}</div>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 18px;">Hi ${name || 'there'}, <strong>${invitedBy || 'an admin'}</strong> has invited you to join <strong>${org}</strong> on Invoicify.</p>
+        <div style="background:#f4f4fb;border:1px solid #e6e6f2;border-radius:12px;padding:14px 16px;margin:0 0 22px;">
+          <div style="font-size:12px;color:#999;margin-bottom:4px;">YOUR ROLE</div>
+          <div style="font-size:14px;font-weight:700;color:#2b2f77;">${roleLine}</div>
+        </div>
+        <div style="text-align:center;margin:0 0 22px;">
+          <a href="${link}" style="display:inline-block;background:#f2703c;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 34px;border-radius:10px;">Accept Invitation</a>
+        </div>
+        <p style="font-size:13px;color:#555;line-height:1.55;margin:0 0 14px;">Once you accept, we'll email you a <strong>temporary password</strong>. Use it to log in and you'll be asked to choose your own password straight away.</p>
+        <p style="font-size:12px;color:#999;line-height:1.5;margin:0 0 6px;">This invitation expires in 7 days. If the button doesn't work, copy this link into your browser:</p>
+        <p style="font-size:11.5px;color:#8a8ab0;word-break:break-all;margin:0;">${link}</p>`);
+
+  if (!t) {
+    console.log(`\n============================================================`);
+    console.log(`[Invoicify] Email not configured (set SMTP_* in .env).`);
+    console.log(`Invitation for ${email} — accept link:`);
+    console.log(link);
+    console.log(`============================================================\n`);
+    return;
+  }
+  await t.sendMail({ from: `"Invoicify" <${fromAddress}>`, to: email, subject, text, html });
+  console.log(`[Invoicify] Invitation emailed to ${email}`);
+}
+
+// STEP 2 of the team flow: invite accepted -> send the temporary password.
+// Logging in with it does NOT sign them in; it forces the set-password screen.
+export async function sendTempPassword({ email, name, tempPassword, companyName }) {
+  const t = getTransporter();
+  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
+  const org = companyName || 'your team';
+
+  const subject = 'Your Invoicify temporary password';
+  const text = `Hi ${name || 'there'}, your invitation to ${org} is confirmed. Your temporary password is ${tempPassword}. Log in with it and you'll be asked to set your own password before you can continue.`;
+  const html = shell(`
+        <div style="font-size:15px;font-weight:700;color:#2b2f77;margin:18px 0 6px;">Invitation accepted 🎉</div>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 18px;">Hi ${name || 'there'}, you're now part of <strong>${org}</strong> on Invoicify. Use the temporary password below to log in.</p>
+        <div style="background:#f4f4fb;border:1px solid #e6e6f2;border-radius:14px;padding:18px;text-align:center;margin:0 0 20px;">
+          <div style="font-size:12px;color:#999;margin-bottom:8px;">TEMPORARY PASSWORD</div>
+          <div style="font-size:26px;font-weight:800;letter-spacing:4px;color:#2b2f77;font-family:'Courier New',monospace;">${tempPassword}</div>
+        </div>
+        <p style="font-size:13px;color:#555;line-height:1.55;margin:0 0 14px;">For your security this password works <strong>once</strong>. As soon as you enter it, Invoicify will ask you to choose your own password — you'll then log in with that.</p>
+        <p style="font-size:12.5px;color:#999;line-height:1.5;margin:0;">Please don't share this email with anyone.</p>`);
+
+  if (!t) {
+    console.log(`\n============================================================`);
+    console.log(`[Invoicify] Email not configured (set SMTP_* in .env).`);
+    console.log(`Temporary password for ${email}: ${tempPassword}`);
+    console.log(`============================================================\n`);
+    return;
+  }
+  await t.sendMail({ from: `"Invoicify" <${fromAddress}>`, to: email, subject, text, html });
+  console.log(`[Invoicify] Temporary password emailed to ${email}`);
+}
+
 export async function sendAccountDeleted(email, name, dataDeleted) {
   const t = getTransporter();
   const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';

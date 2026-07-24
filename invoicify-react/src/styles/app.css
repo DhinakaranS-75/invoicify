@@ -1214,3 +1214,35 @@
   html[data-theme="dark"] .profile-info-row{color:#9fa1cf;}
   html[data-theme="dark"] .profile-info-row strong{color:#eceefc;}
   html[data-theme="dark"] .profile-menu-link{border-top-color:#34376b;color:#7dd8cd;}
+  /* ---- Team invitation flow (status badges, resend, invite link box) ---- */
+  .team-status{font-size:11px;font-weight:600;margin-top:3px;display:flex;align-items:center;gap:5px;}
+  .team-status i{font-size:10px;}
+  .ts-invited{color:#c4571f;}
+  .ts-pending{color:#8a6d3b;}
+  .ts-active{color:#0f8478;}
+  .team-resend{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:4px 8px;flex:none;}
+  .team-resend:hover{color:var(--navy);}
+  .invite-link-box{margin-top:14px;background:#f4f4fb;border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .ilb-title{font-size:12.5px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:7px;margin-bottom:8px;}
+  .ilb-url{font-size:11.5px;color:#5b5d8a;word-break:break-all;background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 11px;line-height:1.5;}
+  .ilb-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .ilb-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
+  html[data-theme="dark"] .invite-link-box{background:#23264f;}
+  html[data-theme="dark"] .ilb-title{color:#eceefc;}
+  html[data-theme="dark"] .ilb-url{background:#1b1c33;color:#9fa1cf;border-color:#34376b;}
+  html[data-theme="dark"] .team-resend:hover{color:#eceefc;}
+
+  /* ---- Invite acceptance page ---- */
+  .invite-badge{width:56px;height:56px;border-radius:50%;background:rgba(242,112,60,0.12);color:var(--orange);display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px;}
+  .invite-badge.ok{background:rgba(23,179,163,0.14);color:#0f8478;}
+  .invite-badge.bad{background:rgba(214,69,69,0.12);color:var(--danger);}
+  .invite-summary{background:#f4f4fb;border:1px solid var(--line);border-radius:12px;padding:6px 14px;margin:18px 0 14px;}
+  .invite-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .invite-row:last-child{border-bottom:none;}
+  .invite-row span{color:var(--muted);flex:none;}
+  .invite-row strong{color:var(--navy);text-align:right;word-break:break-word;font-weight:600;}
+  .invite-note{font-size:12px;color:var(--muted);line-height:1.55;display:flex;align-items:flex-start;gap:7px;margin:0 0 18px;}
+  .invite-note i{color:var(--teal);margin-top:2px;flex:none;}
+  html[data-theme="dark"] .invite-summary{background:#23264f;}
+  html[data-theme="dark"] .invite-row{border-bottom-color:#34376b;}
+  html[data-theme="dark"] .invite-row strong{color:#eceefc;}

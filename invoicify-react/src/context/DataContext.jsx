@@ -78,19 +78,24 @@ export function DataProvider({ children }) {
 
   // ---- Auth ----
   const registerUser = useCallback(async (data) => {
+    // role is intentionally NOT sent — the backend always makes a
+    // self-registered account the company Admin (full control).
     const res = await api.post('/api/auth/register', {
       firstName: data.firstName, lastName: data.lastName,
-      email: data.email, password: data.password, role: data.role
+      email: data.email, password: data.password
     });
     return res.user; // does NOT auto-login (matches original flow: go to login)
   }, []);
 
   const login = useCallback(async (email, password) => {
     const res = await api.post('/api/auth/login', { email, password });
+    // Invited member still on their temporary password: no session is created,
+    // the caller sends them to the "set your password" screen instead.
+    if (res.mustResetPassword) return res;
     setToken(res.token);
     setCurrentUser(res.user);
     await loadAllData();
-    return res.user;
+    return res;
   }, [loadAllData]);
 
   const logout = useCallback(() => {
@@ -212,10 +217,16 @@ export function DataProvider({ children }) {
   }, []);
 
   const addTeamMember = useCallback(async (member) => {
-    const { member: created } = await api.post('/api/auth/team', member);
-    setTeamMembers((prev) => [...prev, withId(created)]);
-    return created;
+    const res = await api.post('/api/auth/team', member);
+    setTeamMembers((prev) => [...prev, withId(res.member)]);
+    return res; // { member, inviteLink, emailSent }
   }, []);
+
+  const resendInvite = useCallback(async (id) => {
+    const res = await api.post(`/api/auth/team/${id}/resend`);
+    await loadTeam();
+    return res; // { message, inviteLink? }
+  }, [loadTeam]);
   const removeTeamMember = useCallback(async (id) => {
     await api.del(`/api/auth/team/${id}`);
     setTeamMembers((prev) => prev.filter((x) => x._id !== id && x.id !== id));
@@ -234,7 +245,7 @@ export function DataProvider({ children }) {
     catalogItems, addItem, updateItem, deleteItems,
     incomes, addIncome, deleteIncome,
     expenses, addExpense, deleteExpense,
-    teamMembers, addTeamMember, removeTeamMember,
+    teamMembers, addTeamMember, removeTeamMember, resendInvite, loadTeam,
     invoiceNumberConfig, setInvoiceNumberConfig, nextInvoiceNumber,
     invoiceTemplate, setInvoiceTemplate,
     companySignature, setCompanySignature,

@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import { useData } from './context/DataContext';
 import { DataProvider } from './context/DataContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -6,9 +7,15 @@ import AuthScreen from './pages/AuthScreen';
 import AppShell from './components/AppShell';
 import Onboarding from './pages/Onboarding';
 import BootSplash from './components/BootSplash';
+import InviteAccept from './pages/InviteAccept';
 
 function Root() {
   const { currentUser, booting } = useData();
+  const { pathname } = useLocation();
+
+  // Team invitation links (/invite/<token>) always open the accept page,
+  // whether or not someone is already logged in on this device.
+  if (/^\/invite\/.+/.test(pathname)) return <InviteAccept />;
 
   // While checking if a saved login is still valid
   if (booting) return <BootSplash />;

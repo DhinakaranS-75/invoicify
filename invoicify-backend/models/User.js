@@ -46,7 +46,18 @@ const userSchema = new mongoose.Schema({
 
   // Password reset (OTP-based) — resetOtp stores a bcrypt-hashed 6-digit code
   resetOtp: String,
-  resetOtpExpiry: Date
+  resetOtpExpiry: Date,
+
+  // ---- Team invitation / activation flow ----
+  // 'active'   = normal account, can log in
+  // 'invited'  = invite email sent, NOT accepted yet -> login blocked
+  // 'accepted' = invite accepted, temporary password emailed -> must set own password
+  // (existing accounts created before this feature have no value = treated as active)
+  status: { type: String, enum: ['active', 'invited', 'accepted'], default: 'active' },
+  inviteToken: String,        // sha256 hash of the raw token that goes in the email link
+  inviteTokenExpiry: Date,
+  mustResetPassword: { type: Boolean, default: false },
+  invitedBy: String           // name of the admin who sent the invite
 }, { timestamps: true });
 
 // Hash the password automatically before saving (if it changed)
@@ -68,6 +79,8 @@ userSchema.methods.toSafeObject = function () {
   delete obj.password;
   delete obj.resetOtp;
   delete obj.resetOtpExpiry;
+  delete obj.inviteToken;
+  delete obj.inviteTokenExpiry;
   return obj;
 };
 
