@@ -6,6 +6,7 @@ import { buildInvoiceNumber } from '../utils/invoiceNumber';
 import { registerNavGuard, clearNavGuard } from '../utils/navGuard';
 import InvoiceDocument from './InvoiceDocument';
 import ScaleToFit from './ScaleToFit';
+import PaymentConflictDialog from './PaymentConflictDialog';
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const plusDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
@@ -140,6 +141,9 @@ export default function InvoiceForm({ editingId, onBack }) {
   };
 
   // ---- Save ----
+  // Set when saving would leave a paid invoice sitting on a non-Paid status.
+  const [payConflict, setPayConflict] = useState(null); // { invoiceObj, paidSum }
+
   const save = async () => {
     if (!to.name.trim()) { toast('Customer required', 'Please fill the mandatory customer name.', 'error'); return; }
     const snapshot = {
@@ -148,11 +152,23 @@ export default function InvoiceForm({ editingId, onBack }) {
       notes, taxPct, discountPct, signature: companySignature,
       items: items.map((li) => ({ name: li.name, description: li.description, qty: parseFloat(li.qty) || 0, rate: parseFloat(li.rate) || 0 }))
     };
+    const existingPayments = editing?.payments || [];
     const invoiceObj = {
       number: details.number, orderNumber: details.orderNumber, date: details.date,
       dueDate: details.due, client: to.name.trim(), status: details.status,
-      total: totals.total, snapshot, payments: editing?.payments || []
+      total: totals.total, snapshot, payments: existingPayments
     };
+
+    const paidSum = existingPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    if (editing && paidSum > 0 && details.status !== 'Paid') {
+      setPayConflict({ invoiceObj, paidSum });
+      return;
+    }
+    await commitSave(invoiceObj);
+  };
+
+  const commitSave = async (invoiceObj) => {
+    setPayConflict(null);
     try {
       if (editing) {
         await updateInvoice(editing._id || editing.id, invoiceObj);
@@ -404,6 +420,18 @@ export default function InvoiceForm({ editingId, onBack }) {
           </div>
         </div>
       </div>
+      {payConflict && (
+        <PaymentConflictDialog
+          invoiceNumber={details.number}
+          paidAmount={payConflict.paidSum}
+          newStatus={details.status}
+          currency={currency}
+          onRemove={() => commitSave({ ...payConflict.invoiceObj, payments: [] })}
+          onKeep={() => commitSave(payConflict.invoiceObj)}
+          onCancel={() => setPayConflict(null)}
+        />
+      )}
+
       {/* Unsaved changes guard */}
       <div className={'confirm-overlay' + (pendingLeave ? ' show' : '')}>
         <div className="confirm-box">

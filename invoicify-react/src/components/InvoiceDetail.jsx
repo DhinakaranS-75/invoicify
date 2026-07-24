@@ -6,6 +6,7 @@ import { fmt, statusBadgeClass } from '../utils/format';
 import InvoiceDocument, { invoiceToDocData } from './InvoiceDocument';
 import ScaleToFit from './ScaleToFit';
 import PrintPortal from './PrintPortal';
+import PaymentConflictDialog from './PaymentConflictDialog';
 import { exportElementToPDF } from '../utils/pdf';
 
 function paidTotal(inv) {
@@ -33,13 +34,22 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
   }
 
   const status = inv.status || 'Draft';
+  const [statusConflict, setStatusConflict] = useState(null); // pending new status
   const paid = paidTotal(inv);
   const balance = Math.max(0, inv.total - paid);
   const pct = inv.total > 0 ? Math.min(100, (paid / inv.total) * 100) : 0;
   const docData = invoiceToDocData(inv, company, companySignature);
 
+  // Moving an invoice that has payments on it to a non-Paid status is
+  // ambiguous, so ask instead of guessing (see PaymentConflictDialog).
   const markAs = (newStatus) => {
-    updateInvoice(inv.id, { status: newStatus });
+    if (paid > 0 && newStatus !== 'Paid') { setStatusConflict(newStatus); return; }
+    applyStatus(newStatus, inv.payments || []);
+  };
+
+  const applyStatus = (newStatus, payments) => {
+    updateInvoice(inv.id, { status: newStatus, payments });
+    setStatusConflict(null);
     toast('Status updated', `${inv.number} marked as ${newStatus}.`);
   };
 
@@ -153,6 +163,19 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
       <PrintPortal>
         <InvoiceDocument data={docData} template={invoiceTemplate} currency={currency} />
       </PrintPortal>
+
+      {/* Status change vs recorded payment */}
+      {statusConflict && (
+        <PaymentConflictDialog
+          invoiceNumber={inv.number}
+          paidAmount={paid}
+          newStatus={statusConflict}
+          currency={currency}
+          onRemove={() => { applyStatus(statusConflict, []); toast('Payment removed', 'Income updated.', 'delete'); }}
+          onKeep={() => applyStatus(statusConflict, inv.payments || [])}
+          onCancel={() => setStatusConflict(null)}
+        />
+      )}
 
       {/* Payment dialog */}
       {payDialog && <PaymentDialog balance={balance} currency={currency} onSave={recordPayment} onClose={() => setPayDialog(false)} />}
