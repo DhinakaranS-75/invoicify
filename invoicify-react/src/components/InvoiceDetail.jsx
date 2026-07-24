@@ -5,6 +5,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { fmt, statusBadgeClass } from '../utils/format';
 import InvoiceDocument, { invoiceToDocData } from './InvoiceDocument';
 import ScaleToFit from './ScaleToFit';
+import PrintPortal from './PrintPortal';
 import { exportElementToPDF } from '../utils/pdf';
 
 function paidTotal(inv) {
@@ -146,6 +147,12 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
       <div ref={previewRef} style={{ position: 'absolute', left: '-10000px', top: 0, width: '794px', background: '#fff' }} aria-hidden="true">
         <InvoiceDocument data={docData} template={invoiceTemplate} currency={currency} />
       </div>
+
+      {/* Print copy — lives outside the app tree so printing can hide #root
+          entirely and avoid the blank leading pages the old approach produced. */}
+      <PrintPortal>
+        <InvoiceDocument data={docData} template={invoiceTemplate} currency={currency} />
+      </PrintPortal>
 
       {/* Payment dialog */}
       {payDialog && <PaymentDialog balance={balance} currency={currency} onSave={recordPayment} onClose={() => setPayDialog(false)} />}

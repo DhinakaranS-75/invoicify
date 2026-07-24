@@ -1171,11 +1171,26 @@
     #invoice-preview,#invoice-view-preview{overflow:hidden;max-width:100%;min-width:0;}
   }
 
+  /* The printable copy of the invoice is portalled here, outside #root. */
+  #print-root{display:none;}
+
   @media print{
-    body *{visibility:hidden;}
-    #invoice-preview,#invoice-preview *,#invoice-view-preview,#invoice-view-preview *{visibility:visible;}
-    #invoice-preview,#invoice-view-preview{position:absolute;left:0;top:0;width:100%;box-shadow:none;}
+    /* Hide the entire app. Using display (not visibility) means it takes up
+       no layout space, so there are no blank pages before the invoice. */
+    #root{display:none !important;}
+
+    #print-root{display:block !important;width:100% !important;}
+    #print-root *{visibility:visible !important;}
+
+    /* The invoice is always white paper, whatever theme is on screen. */
+    html,body,#print-root{background:#fff !important;color-scheme:light;}
+    #print-root .inv-doc{box-shadow:none !important;margin:0 !important;width:100% !important;}
+
+    /* Fallback for the editor's live preview, if it is ever printed. */
+    #invoice-preview{box-shadow:none;}
   }
+
+  @page{margin:12mm;}
 
   /* ---------- Dark theme (scoped to dashboard content) ---------- */
   html[data-theme="dark"] .app-screen{background:#11132b;}
@@ -1325,3 +1340,54 @@
     background-color:#23264f;
     color:#eceefc;
   }
+
+  /* ---- Dark-theme text gaps ----
+     These all set a navy/near-black colour for the light theme and had no
+     dark counterpart, so the text disappeared against a dark background. */
+
+  /* "Recently Added" cards: the card background and the bold name were already
+     handled, but the sub-line (category / email) and the amount were not. */
+  html[data-theme="dark"] .saved-item{color:#9fa1cf;}
+  html[data-theme="dark"] .saved-item .amt-col{color:#7dd8cd;font-weight:700;}
+
+  /* Panel footer links, e.g. "View all" */
+  html[data-theme="dark"] .pd-link{color:#9fa1cf;border-top-color:#34376b;}
+  html[data-theme="dark"] .pd-link:hover{color:var(--orange);}
+
+  /* Invoice number links in dashboard tables */
+  html[data-theme="dark"] .invoice-dash-table .link-col{color:#7dd8cd;}
+  html[data-theme="dark"] .invoice-dash-table .link-col:hover{color:var(--orange);}
+
+  /* Template picker titles */
+  html[data-theme="dark"] .tt-title{color:#eceefc;}
+
+  /* Mobile "back" control inside Settings */
+  html[data-theme="dark"] .settings-back{color:#eceefc;}
+
+  /* Getting-started step icons (tinted navy chip + navy glyph) */
+  html[data-theme="dark"] .gs-step-icon{background:rgba(125,216,205,.12);color:#7dd8cd;}
+
+  /* ---- Invoice status colours (revised) ----
+     Sent moved off brown, which read as "stale/disabled", onto blue —
+     the only unused hue, and the natural one for "issued, awaiting payment".
+     Draft stays deliberately quiet (it isn't a real invoice yet) but with
+     enough text contrast to actually read. Progression is now:
+     grey (draft) -> blue (sent) -> orange (unpaid) -> red (overdue) -> green (paid). */
+  .status-draft,   .status-select.status-draft   {background-color:#e8eaf1;color:#464a6b;}
+  .status-sent,    .status-select.status-sent    {background-color:#e3eefb;color:#1a5fa0;}
+  .status-unpaid,  .status-select.status-unpaid  {background-color:rgba(242,112,60,0.16);color:#b8501b;}
+  .status-paid,    .status-select.status-paid    {background-color:rgba(31,174,110,0.16);color:#157a4d;}
+  .status-overdue, .status-select.status-overdue {background-color:rgba(224,51,92,0.15);color:#a81b40;}
+
+  /* Dark theme: these had no overrides at all, so the light pills were being
+     painted straight onto the dark table. */
+  html[data-theme="dark"] .status-draft,
+  html[data-theme="dark"] .status-select.status-draft   {background-color:#34375f;color:#c6c8e2;}
+  html[data-theme="dark"] .status-sent,
+  html[data-theme="dark"] .status-select.status-sent    {background-color:#1d3a5c;color:#8ec5f2;}
+  html[data-theme="dark"] .status-unpaid,
+  html[data-theme="dark"] .status-select.status-unpaid  {background-color:#4a2a18;color:#f2a279;}
+  html[data-theme="dark"] .status-paid,
+  html[data-theme="dark"] .status-select.status-paid    {background-color:#15402f;color:#6ed4a6;}
+  html[data-theme="dark"] .status-overdue,
+  html[data-theme="dark"] .status-select.status-overdue {background-color:#4a1c2c;color:#f28aa2;}
