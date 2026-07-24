@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -40,6 +40,28 @@ export default function Invoices() {
     setSelected(new Set());
   };
 
+  // ---- Search --------------------------------------------------------
+  // Matches invoice number, order number and customer name — the three
+  // things you actually have to hand when a customer rings up asking for
+  // a copy. Amount is included too since people often remember the figure.
+  const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false); // mobile: icon expands the field
+
+  const visibleInvoices = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return invoices;
+    return invoices.filter((inv) => {
+      const haystack = [
+        inv.number, inv.orderNumber, inv.client,
+        inv.status, inv.date, inv.dueDate,
+        inv.total != null ? String(inv.total) : ''
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [invoices, query]);
+
+  const clearSearch = () => { setQuery(''); setSearchOpen(false); };
+
   if (view === 'form') {
     return <InvoiceForm editingId={editingId} onBack={backToDashboard} />;
   }
@@ -52,6 +74,29 @@ export default function Invoices() {
       <div className="app-header-row">
         <div><h1>Invoices</h1><p className="hide-mobile">Create, preview and download professional invoices in seconds.</p></div>
         <div className="header-actions">
+          <div className={'inv-search' + (searchOpen ? ' open' : '')}>
+            <button
+              className="inv-search-toggle"
+              onClick={() => setSearchOpen((o) => !o)}
+              title="Search invoices"
+              aria-label="Search invoices"
+            >
+              <i className="fa-solid fa-magnifying-glass"></i>
+            </button>
+            <input
+              type="search"
+              className="inv-search-input"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Invoice #, order # or customer…"
+              aria-label="Search invoices"
+            />
+            {query && (
+              <button className="inv-search-clear" onClick={clearSearch} title="Clear" aria-label="Clear search">
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            )}
+          </div>
           {selected.size > 0 && can('editInvoice') && (
             <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={bulkDelete}>
               <i className="fa-solid fa-trash-can"></i> Delete ({selected.size})
@@ -75,7 +120,10 @@ export default function Invoices() {
       </div>
 
       <div className="panel">
-        <h3>Saved Invoices</h3>
+        <h3>
+          Saved Invoices
+          {query && <span className="inv-search-count">{visibleInvoices.length} of {invoices.length}</span>}
+        </h3>
         <div className="hide-mobile" style={{ overflowX: 'auto' }}>
           <table className="invoice-dash-table">
             <thead>
@@ -86,9 +134,11 @@ export default function Invoices() {
               </tr>
             </thead>
             <tbody>
-              {invoices.length === 0 ? (
-                <tr><td colSpan="11"><p className="empty-line" style={{ fontSize: '13px', margin: 0 }}>No invoices yet — create your first one.</p></td></tr>
-              ) : invoices.slice().reverse().map((inv) => {
+              {visibleInvoices.length === 0 ? (
+                <tr><td colSpan="11"><p className="empty-line" style={{ fontSize: '13px', margin: 0 }}>
+                  {query ? `No invoices match "${query}".` : 'No invoices yet — create your first one.'}
+                </p></td></tr>
+              ) : visibleInvoices.slice().reverse().map((inv) => {
                 const status = inv.status || 'Unpaid';
                 const paid = (inv.payments || []).reduce((s, p) => s + p.amount, 0);
                 const balance = status === 'Paid' ? 0 : Math.max(0, inv.total - paid);
@@ -115,9 +165,11 @@ export default function Invoices() {
 
         {/* Mobile cards */}
         <div className="mobile-invoice-cards show-mobile">
-          {invoices.length === 0 ? (
-            <p className="empty-line" style={{ fontSize: '13px' }}>No invoices yet — tap + to create one.</p>
-          ) : invoices.slice().reverse().map((inv) => {
+          {visibleInvoices.length === 0 ? (
+            <p className="empty-line" style={{ fontSize: '13px' }}>
+              {query ? `No invoices match "${query}".` : 'No invoices yet — tap + to create one.'}
+            </p>
+          ) : visibleInvoices.slice().reverse().map((inv) => {
             const status = inv.status || 'Unpaid';
             const method = invoicePaymentMethod(inv);
             return (

@@ -1407,3 +1407,59 @@
   html[data-theme="dark"] .pc-choice:hover{border-color:#7dd8cd;background:rgba(125,216,205,0.08);}
   html[data-theme="dark"] .pc-choice-title{color:#eceefc;}
   html[data-theme="dark"] .pc-choice-sub{color:#9fa1cf;}
+
+  /* Notification rows are buttons now — strip the native button styling so
+     they still look exactly like the original .notif-item layout. */
+  .notif-item-btn{
+    width:100%;background:none;border:none;border-bottom:1px solid var(--line);
+    font:inherit;text-align:left;cursor:pointer;transition:background .15s ease;
+  }
+  .notif-item-btn:last-child{border-bottom:none;}
+  .notif-item-btn:hover{background:rgba(43,47,119,0.04);}
+  html[data-theme="dark"] .notif-item-btn{border-bottom-color:#34376b;}
+  html[data-theme="dark"] .notif-item-btn:hover{background:rgba(255,255,255,0.05);}
+  html[data-theme="dark"] .notif-empty{color:#9fa1cf;}
+
+  /* ---- Invoice search ----
+     Desktop: always-visible field. Mobile: an icon that expands into the
+     field, so the header stays uncluttered on a narrow screen. */
+  .inv-search{display:flex;align-items:center;gap:6px;position:relative;}
+  .inv-search-toggle{
+    display:none;width:34px;height:34px;flex:none;border:1px solid var(--line);
+    background:#fff;border-radius:50%;cursor:pointer;color:var(--navy);font-size:13px;
+    align-items:center;justify-content:center;
+  }
+  .inv-search-input{
+    width:230px;padding:8px 30px 8px 34px;border-radius:20px;
+    border:1.5px solid var(--line);background:#fff;color:var(--ink);font-size:13px;outline:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%238a8ab0' stroke-width='2.5'><circle cx='11' cy='11' r='7'/><line x1='16.5' y1='16.5' x2='21' y2='21'/></svg>");
+    background-repeat:no-repeat;background-position:left 12px center;
+    transition:border-color .15s ease;
+  }
+  .inv-search-input:focus{border-color:var(--teal);}
+  .inv-search-input::-webkit-search-cancel-button{display:none;}
+  .inv-search-clear{
+    position:absolute;right:9px;top:50%;transform:translateY(-50%);
+    background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;
+  }
+  .inv-search-clear:hover{color:var(--danger);}
+  .inv-search-count{
+    margin-left:9px;font-size:11.5px;font-weight:600;color:var(--muted);
+    background:#eceefc;border-radius:10px;padding:2px 9px;vertical-align:middle;
+  }
+  html[data-theme="dark"] .inv-search-toggle{background:#23264f;border-color:#34376b;color:#eceefc;}
+  html[data-theme="dark"] .inv-search-input{background-color:#23264f;border-color:#34376b;color:#eceefc;}
+  html[data-theme="dark"] .inv-search-input:focus{border-color:#7dd8cd;}
+  html[data-theme="dark"] .inv-search-count{background:#34375f;color:#c6c8e2;}
+
+  @media (max-width:1023px){
+    .inv-search-toggle{display:inline-flex;}
+    .inv-search .inv-search-input{
+      width:0;padding:0;border-width:0;opacity:0;pointer-events:none;
+      transition:width .22s ease,opacity .18s ease;
+    }
+    .inv-search.open .inv-search-input{
+      width:min(60vw,230px);padding:8px 30px 8px 34px;border-width:1.5px;opacity:1;pointer-events:auto;
+    }
+    .inv-search.open .inv-search-toggle{display:none;}
+  }

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeContext';
@@ -24,7 +24,7 @@ const PATH_TITLES = {
 };
 
 export default function AppShell() {
-  const { currentUser, logout } = useData();
+  const { currentUser, logout, invoices } = useData();
   const { toggleTheme } = useTheme();
   const { can, role } = usePermissions();
   const navigate = useNavigate();
@@ -33,6 +33,58 @@ export default function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  // ---- Notifications ----------------------------------------------------
+  // Everything here is derived from invoices already in memory, so there is
+  // no extra request and it stays in step with the 30s background refresh.
+  const notifications = useMemo(() => {
+    const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+    const today = startOfDay(new Date());
+    const weekAhead = new Date(today); weekAhead.setDate(weekAhead.getDate() + 7);
+
+    let overdue = 0, dueSoon = 0, drafts = 0;
+
+    (invoices || []).forEach((inv) => {
+      if (inv.status === 'Draft') { drafts += 1; return; }
+      if (inv.status === 'Paid') return;
+
+      const paid = (inv.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+      if (paid >= (inv.total || 0)) return;          // settled, just not relabelled
+      if (!inv.dueDate) return;
+
+      const due = startOfDay(inv.dueDate);
+      if (Number.isNaN(due.getTime())) return;
+      if (due < today) overdue += 1;
+      else if (due <= weekAhead) dueSoon += 1;
+    });
+
+    const list = [];
+    if (overdue > 0) {
+      list.push({
+        key: 'overdue', tone: 'ni-red', icon: 'fa-triangle-exclamation',
+        title: `${overdue} invoice${overdue > 1 ? 's' : ''} overdue`,
+        sub: 'Past the due date and still unpaid.'
+      });
+    }
+    if (dueSoon > 0) {
+      list.push({
+        key: 'duesoon', tone: 'ni-orange', icon: 'fa-clock',
+        title: `${dueSoon} invoice${dueSoon > 1 ? 's' : ''} due this week`,
+        sub: 'Worth a follow-up before the date passes.'
+      });
+    }
+    if (drafts > 0) {
+      list.push({
+        key: 'drafts', tone: 'ni-teal', icon: 'fa-file-pen',
+        title: `${drafts} invoice${drafts > 1 ? 's' : ''} still in draft`,
+        sub: 'Created but never sent to the customer.'
+      });
+    }
+    return list;
+  }, [invoices]);
+
+  // Only overdue work is urgent enough to earn the red dot.
+  const hasUrgent = notifications.some((n) => n.key === 'overdue');
 
   const profileRef = useClickOutside(useCallback(() => setProfileOpen(false), []), profileOpen);
   const notifRef = useClickOutside(useCallback(() => setNotifOpen(false), []), notifOpen);
@@ -89,14 +141,26 @@ export default function AppShell() {
 
           {/* Mobile notification bell */}
           <div className="nav-mobile-only" style={{ position: 'relative' }} ref={notifRef}>
-            <button className="icon-btn" onClick={() => setNotifOpen((o) => !o)} title="Notifications">
+            <button id="nav-notif-btn" className="icon-btn" onClick={() => setNotifOpen((o) => !o)} title="Notifications">
               <i className="fa-solid fa-bell"></i>
+              {hasUrgent && <span className="notif-dot"></span>}
             </button>
             {notifOpen && (
               <div className="notif-dropdown show">
                 <div className="notif-head">Notifications</div>
                 <div className="notif-list">
-                  <div className="notif-empty">You're all caught up!</div>
+                  {notifications.length === 0
+                    ? <div className="notif-empty">You're all caught up!</div>
+                    : notifications.map((n) => (
+                      <button
+                        className="notif-item notif-item-btn"
+                        key={n.key}
+                        onClick={() => { setNotifOpen(false); go('invoice'); }}
+                      >
+                        <span className={'notif-icon ' + n.tone}><i className={'fa-solid ' + n.icon}></i></span>
+                        <span className="notif-text"><strong>{n.title}</strong><br />{n.sub}</span>
+                      </button>
+                    ))}
                 </div>
               </div>
             )}
