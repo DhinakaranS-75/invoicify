@@ -1300,3 +1300,28 @@
   @media (min-width:1024px){
     .install-banner{left:auto;right:22px;bottom:22px;max-width:390px;}
   }
+
+  /* ---- Dark-mode native controls (select dropdowns, spinners, scrollbars) ----
+     Native <select> popups, number spinners and scrollbars are painted by the
+     browser, not by our CSS. Without color-scheme the browser assumes a light
+     page and draws dark text, which vanished against the dark dropdown. */
+  html{color-scheme:light;}
+  html[data-theme="dark"]{color-scheme:dark;}
+
+  /* The invoice sheet is always white paper, even in dark mode, so keep its
+     controls light — otherwise the PDF/print preview looks wrong. */
+  #invoice-preview,#invoice-view-preview{color-scheme:light;}
+
+  /* Explicit option colours as well: some browsers (Windows Chrome especially)
+     ignore color-scheme for <option> and need real values. These selectors
+     match the specificity of the light-theme rules above and come later,
+     so they win in dark mode. */
+  html[data-theme="dark"] select option,
+  html[data-theme="dark"] select optgroup,
+  html[data-theme="dark"] .field select option,
+  html[data-theme="dark"] .field-sm select option,
+  html[data-theme="dark"] .phone-wrap .phone-code-select option,
+  html[data-theme="dark"] .phone-code-select-sm option{
+    background-color:#23264f;
+    color:#eceefc;
+  }
