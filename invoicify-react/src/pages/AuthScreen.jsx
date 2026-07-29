@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { isValidEmail } from '../utils/format';
@@ -7,8 +7,16 @@ import { api } from '../utils/api';
 import OtpInput from '../components/OtpInput';
 import PasswordStrength from '../components/PasswordStrength';
 
+// Logging out (or a session expiring) leaves the URL alone, so someone can
+// land on the login screen while the address bar still reads /invoices.
+// After a successful login we send them back there rather than to /home.
+const APP_PATHS = ['/home', '/items', '/invoices', '/customers', '/reports', '/settings'];
+
 export default function AuthScreen() {
-  const [view, setView] = useState('login'); // login | register | forgot | reset | setpw
+  const initialLocation = useLocation();
+  const [view, setView] = useState(
+    initialLocation.pathname.startsWith('/signup') ? 'register' : 'login'
+  ); // login | register | forgot | reset | setpw
   const [resetEmail, setResetEmail] = useState('');
   // Credentials of an invited member who just logged in with a temporary password
   const [pending, setPending] = useState(null);
@@ -44,6 +52,7 @@ function LoginForm({ goTo, setPending }) {
   const { login } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -69,12 +78,21 @@ function LoginForm({ goTo, setPending }) {
         return;
       }
 
-      navigate('/home', { replace: true });
+      const wanted = location.pathname;
+      const dest = APP_PATHS.some((p) => wanted.startsWith(p)) ? wanted : '/home';
+      navigate(dest, { replace: true });
       toast('Welcome back', `Signed in as ${res.user.name}.`);
     } catch (err) {
-      setErrors({ both: true, password: 'Invalid email or password.' });
+      // For security the server never says whether the email or the password
+      // was wrong, so we highlight the password field (the one people re-type)
+      // and show our own clean message rather than echoing the API text.
+      const network = /network|fetch|failed to/i.test(err?.message || '');
+      const msg = network
+        ? 'Could not reach the server. Please check your connection and try again.'
+        : 'Incorrect email or password. Please try again.';
+      setErrors({ password: msg });
       doShake();
-      toast('Login failed', err.message || 'No account matches those credentials.', 'error');
+      toast('Login failed', msg, 'error');
     }
   };
 
@@ -83,10 +101,10 @@ function LoginForm({ goTo, setPending }) {
       <h1 className="auth-title">Welcome back</h1>
       <p className="auth-sub">Log in to manage your invoices.</p>
       <Field label="Email" error={errors.email} shake={shake}>
-        <input className={(errors.email || errors.both) ? 'invalid' : ''} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
+        <input className={errors.email ? 'invalid' : ''} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
       </Field>
       <Field label="Password" error={errors.password} shake={shake}>
-        <input className={(errors.password || errors.both) ? 'invalid' : ''} type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" />
+        <input className={errors.password ? 'invalid' : ''} type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" />
         <button type="button" className="toggle-eye" onClick={() => setShowPw((s) => !s)}>
           <i className={'fa-solid ' + (showPw ? 'fa-eye-slash' : 'fa-eye')}></i>
         </button>

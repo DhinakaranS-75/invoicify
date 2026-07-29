@@ -8,6 +8,7 @@ import AppShell from './components/AppShell';
 import Onboarding from './pages/Onboarding';
 import BootSplash from './components/BootSplash';
 import InviteAccept from './pages/InviteAccept';
+import Landing from './pages/Landing';
 import IdleWarning from './components/IdleWarning';
 import InstallPrompt from './components/InstallPrompt';
 
@@ -22,8 +23,14 @@ function Root() {
   // While checking if a saved login is still valid
   if (booting) return <BootSplash />;
 
-  // Not logged in -> auth screens
-  if (!currentUser) return <AuthScreen />;
+  // Not logged in:
+  //   /login, /signup, /forgot, /reset -> the auth screens
+  //   anything else (including /) -> the public landing page
+  if (!currentUser) {
+    const authPaths = ['/login', '/signup', '/forgot', '/reset'];
+    if (authPaths.some((pth) => pathname.startsWith(pth))) return <AuthScreen />;
+    return <Landing />;
+  }
 
   // Logged in but hasn't completed company onboarding -> onboarding
   if (!currentUser.onboarded) return <><Onboarding /><IdleWarning /><InstallPrompt /></>;
