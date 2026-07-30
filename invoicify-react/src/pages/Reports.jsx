@@ -84,7 +84,7 @@ export default function Reports() {
   return (
     <div className="page active">
       <div className="app-header-row">
-        <div><h1>Reports</h1><p className="hide-mobile">A clear snapshot of your business performance.</p></div>
+        <div><h1 className="hide-mobile">Reports</h1><p className="hide-mobile">A clear snapshot of your business performance.</p></div>
         <select className="report-period-select" value={period} onChange={(e) => setPeriod(e.target.value)}>
           <option value="this_month">This Month</option>
           <option value="last_month">Last Month</option>

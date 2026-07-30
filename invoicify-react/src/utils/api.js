@@ -74,7 +74,12 @@ async function request(path, { method = 'GET', body } = {}) {
   }
 
   if (!res.ok) {
-    throw new Error(data?.message || `Request failed (${res.status})`);
+    // Surface the server's error code/status so callers can react to specific
+    // cases (e.g. a duplicate invoice number) without matching on text.
+    const error = new Error(data?.message || `Request failed (${res.status})`);
+    error.code = data?.code;
+    error.status = res.status;
+    throw error;
   }
   return data;
 }

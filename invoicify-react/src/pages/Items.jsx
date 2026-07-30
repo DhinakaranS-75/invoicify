@@ -85,7 +85,7 @@ export default function Items() {
   return (
     <div className="page active">
       <div className="app-header-row">
-        <div><h1>Items</h1><p className="hide-mobile">Manage your product/service catalog for faster invoicing.</p></div>
+        <div><h1 className="hide-mobile">Items</h1><p className="hide-mobile">Manage your product/service catalog for faster invoicing.</p></div>
         {view === 'dashboard' && (
           <div className="header-actions">
             {selected.size === 1 && can('manageItems') && (

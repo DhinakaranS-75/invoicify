@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { usePermissions } from '../hooks/usePermissions';
 import { fmt, statusBadgeClass, paymentMethodIcon } from '../utils/format';
 import InvoiceForm from '../components/InvoiceForm';
@@ -21,6 +22,8 @@ export default function Invoices() {
   const [editingId, setEditingId] = useState(null);
   const [viewingId, setViewingId] = useState(null);
   const [selected, setSelected] = useState(new Set());
+  const [menuFor, setMenuFor] = useState(null);       // mobile card whose ⋮ menu is open
+  const [pendingDelete, setPendingDelete] = useState(null); // invoice awaiting delete confirm
 
   const totalRevenue = invoices.reduce((s, i) => s + (i.total || 0), 0);
   const avgInvoice = invoices.length ? totalRevenue / invoices.length : 0;
@@ -34,6 +37,13 @@ export default function Invoices() {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
   const toggleSelectAll = (checked) => setSelected(checked ? new Set(invoices.map((i) => i.id)) : new Set());
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    deleteInvoice(pendingDelete.id);
+    toast('Invoice deleted', `${pendingDelete.number || 'Invoice'} was removed.`, 'delete');
+    setPendingDelete(null);
+  };
+
   const bulkDelete = () => {
     [...selected].forEach((id) => deleteInvoice(id));
     toast('Invoices deleted', `${selected.size} removed.`, 'delete');
@@ -47,7 +57,10 @@ export default function Invoices() {
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false); // mobile: icon expands the field
 
-  const visibleInvoices = useMemo(() => {
+  const [statusFilter, setStatusFilter] = useState('all'); // all | Draft | Sent | Unpaid | Overdue | Paid
+
+  // First narrow by the search box...
+  const queryFiltered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return invoices;
     return invoices.filter((inv) => {
@@ -60,7 +73,28 @@ export default function Invoices() {
     });
   }, [invoices, query]);
 
+  // ...then count each status within those results, so the pills reflect what
+  // the current search actually contains.
+  const STATUS_ORDER = ['Draft', 'Sent', 'Unpaid', 'Overdue', 'Paid'];
+  const statusCounts = useMemo(() => {
+    const c = {};
+    queryFiltered.forEach((inv) => {
+      const st = inv.status || 'Unpaid';
+      c[st] = (c[st] || 0) + 1;
+    });
+    return c;
+  }, [queryFiltered]);
+
+  // ...finally apply the chosen status pill.
+  const visibleInvoices = useMemo(() => {
+    if (statusFilter === 'all') return queryFiltered;
+    return queryFiltered.filter((inv) => (inv.status || 'Unpaid') === statusFilter);
+  }, [queryFiltered, statusFilter]);
+
   const clearSearch = () => { setQuery(''); setSearchOpen(false); };
+  // On mobile the search box expands from an icon; collapse it when the user
+  // taps outside (the query is kept, just like the profile menu closing).
+  const searchRef = useClickOutside(useCallback(() => setSearchOpen(false), []), searchOpen);
 
   if (view === 'form') {
     return <InvoiceForm editingId={editingId} onBack={backToDashboard} />;
@@ -71,10 +105,40 @@ export default function Invoices() {
 
   return (
     <div className="page active">
-      <div className="app-header-row">
-        <div><h1>Invoices</h1><p className="hide-mobile">Create, preview and download professional invoices in seconds.</p></div>
+      <div className="app-header-row inv-page-header">
+        <div><h1 className="hide-mobile">Invoices</h1><p className="hide-mobile">Create, preview and download professional invoices in seconds.</p></div>
         <div className="header-actions">
-          <div className={'inv-search' + (searchOpen ? ' open' : '')}>
+
+          {selected.size > 0 && can('editInvoice') && (
+            <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={bulkDelete}>
+              <i className="fa-solid fa-trash-can"></i> Delete ({selected.size})
+            </button>
+          )}
+          {selected.size === 1 && can('editInvoice') && (
+            <button className="btn btn-small btn-teal" onClick={() => openEdit([...selected][0])}>
+              <i className="fa-solid fa-pen"></i> Edit
+            </button>
+          )}
+
+      {can('createInvoice') && (
+            <button className="btn btn-small btn-orange hide-mobile" onClick={openNew}><i className="fa-solid fa-plus"></i> Create New Invoice</button>
+          )}
+        </div>
+      </div>
+
+      <div className="stat-grid hide-mobile" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
+        <div className="stat-card"><div className="stat-label">Invoices</div><div className="stat-value">{invoices.length}</div></div>
+        <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{fmt(totalRevenue, currency)}</div></div>
+        <div className="stat-card"><div className="stat-label">Average Invoice</div><div className="stat-value">{fmt(avgInvoice, currency)}</div></div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-head-row">
+          <h3>
+            Saved Invoices
+            {(query || statusFilter !== 'all') && <span className="inv-search-count">{visibleInvoices.length} of {invoices.length}</span>}
+          </h3>
+          <div className={'inv-search' + (searchOpen ? ' open' : '')} ref={searchRef}>
             <button
               className="inv-search-toggle"
               onClick={() => setSearchOpen((o) => !o)}
@@ -97,33 +161,29 @@ export default function Invoices() {
               </button>
             )}
           </div>
-          {selected.size > 0 && can('editInvoice') && (
-            <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={bulkDelete}>
-              <i className="fa-solid fa-trash-can"></i> Delete ({selected.size})
-            </button>
-          )}
-          {selected.size === 1 && can('editInvoice') && (
-            <button className="btn btn-small btn-teal" onClick={() => openEdit([...selected][0])}>
-              <i className="fa-solid fa-pen"></i> Edit
-            </button>
-          )}
-          {can('createInvoice') && (
-            <button className="btn btn-small btn-orange hide-mobile" onClick={openNew}><i className="fa-solid fa-plus"></i> Create New Invoice</button>
-          )}
         </div>
-      </div>
 
-      <div className="stat-grid hide-mobile" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
-        <div className="stat-card"><div className="stat-label">Invoices</div><div className="stat-value">{invoices.length}</div></div>
-        <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{fmt(totalRevenue, currency)}</div></div>
-        <div className="stat-card"><div className="stat-label">Average Invoice</div><div className="stat-value">{fmt(avgInvoice, currency)}</div></div>
-      </div>
 
-      <div className="panel">
-        <h3>
-          Saved Invoices
-          {query && <span className="inv-search-count">{visibleInvoices.length} of {invoices.length}</span>}
-        </h3>
+        {/* Status filter pills — combine with the search box above */}
+        {invoices.length > 0 && (
+          <div className="inv-filters">
+            <button
+              className={'inv-filter' + (statusFilter === 'all' ? ' active' : '')}
+              onClick={() => setStatusFilter('all')}
+            >
+              All <span className="inv-filter-count">{queryFiltered.length}</span>
+            </button>
+            {STATUS_ORDER.filter((st) => statusCounts[st]).map((st) => (
+              <button
+                key={st}
+                className={'inv-filter inv-filter-' + st.toLowerCase() + (statusFilter === st ? ' active' : '')}
+                onClick={() => setStatusFilter((cur) => (cur === st ? 'all' : st))}
+              >
+                {st} <span className="inv-filter-count">{statusCounts[st]}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="hide-mobile" style={{ overflowX: 'auto' }}>
           <table className="invoice-dash-table">
             <thead>
@@ -136,7 +196,7 @@ export default function Invoices() {
             <tbody>
               {visibleInvoices.length === 0 ? (
                 <tr><td colSpan="11"><p className="empty-line" style={{ fontSize: '13px', margin: 0 }}>
-                  {query ? `No invoices match "${query}".` : 'No invoices yet — create your first one.'}
+                  {(query || statusFilter !== 'all') ? 'No invoices match these filters.' : 'No invoices yet — create your first one.'}
                 </p></td></tr>
               ) : visibleInvoices.slice().reverse().map((inv) => {
                 const status = inv.status || 'Unpaid';
@@ -167,7 +227,7 @@ export default function Invoices() {
         <div className="mobile-invoice-cards show-mobile">
           {visibleInvoices.length === 0 ? (
             <p className="empty-line" style={{ fontSize: '13px' }}>
-              {query ? `No invoices match "${query}".` : 'No invoices yet — tap + to create one.'}
+              {(query || statusFilter !== 'all') ? 'No invoices match these filters.' : 'No invoices yet — tap + to create one.'}
             </p>
           ) : visibleInvoices.slice().reverse().map((inv) => {
             const status = inv.status || 'Unpaid';
@@ -187,11 +247,57 @@ export default function Invoices() {
                   <span className="mic-amount">{fmt(inv.total, currency)}</span>
                   {method && <span className="pay-method-tag"><i className={'fa-solid ' + paymentMethodIcon(method)}></i> {method}</span>}
                 </div>
+
+                {/* ⋮ actions — stops the card's open-detail tap */}
+                <button
+                  className="mic-kebab"
+                  aria-label="Invoice actions"
+                  onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === inv.id ? null : inv.id); }}
+                >
+                  <i className="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+
+                {menuFor === inv.id && (
+                  <div className="mic-menu" onClick={(e) => e.stopPropagation()}>
+                    {can('editInvoice') && (
+                      <button onClick={() => { setMenuFor(null); openEdit(inv.id); }}>
+                        <i className="fa-solid fa-pen"></i> Edit
+                      </button>
+                    )}
+                    {can('createInvoice') && (
+                      <button onClick={() => { setMenuFor(null); duplicateInvoice(inv.id); toast('Invoice duplicated', 'A copy was created as Draft.'); }}>
+                        <i className="fa-solid fa-copy"></i> Duplicate
+                      </button>
+                    )}
+                    {can('editInvoice') && (
+                      <button className="mic-menu-danger" onClick={() => { setMenuFor(null); setPendingDelete(inv); }}>
+                        <i className="fa-solid fa-trash-can"></i> Delete
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
+          {menuFor && <div className="mic-menu-backdrop" onClick={() => setMenuFor(null)}></div>}
         </div>
       </div>
+
+          {pendingDelete && (
+        <div className="confirm-overlay show" onClick={(e) => { if (e.target === e.currentTarget) setPendingDelete(null); }}>
+          <div className="confirm-box">
+            <div className="confirm-icon"><i className="fa-solid fa-triangle-exclamation"></i></div>
+            <h3>Delete {pendingDelete.number || 'this invoice'}?</h3>
+            <p>This invoice{pendingDelete.client ? ` for ${pendingDelete.client}` : ''} will be permanently removed. This can't be undone.</p>
+            <div className="confirm-actions">
+              <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={confirmDelete}>
+                <i className="fa-solid fa-trash-can"></i> Delete
+              </button>
+              <button className="btn btn-small btn-outline" onClick={() => setPendingDelete(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {can('createInvoice') && (
         <button className="fab" onClick={openNew} title="Create New Invoice"><i className="fa-solid fa-plus"></i></button>

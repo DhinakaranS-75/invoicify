@@ -1,0 +1,105 @@
+==================================================================
+   INVOICIFY — FEATURE IDEAS (add pannalaam list)
+==================================================================
+
+Already done: auth, team invite, invoices, customers, items,
+reports, payments, PWA, dark mode, search, filters, status colors,
+duplicate check, pincode auto-fill, landing page.
+
+------------------------------------------------------------------
+ #  | FEATURE               | ENNA                                  | EFFORT | IMPACT | PRIORITY
+------------------------------------------------------------------
+ 1  | PDF email send        | "Send" button -> customer email-ku    | Medium | High   | MUST
+    |                       | PDF neradiya anupurathu               |        |        |
+ 2  | Recurring invoices    | Monthly rent/subscription auto        | High   | High   | MUST
+    |                       | generate                              |        |        |
+ 3  | Payment reminders     | Overdue-ku auto email reminder        | Medium | High   | MUST
+ 4  | Dashboard analytics   | Revenue graph, top customers, trends  | Medium | High   | Nice
+ 5  | Multi-currency        | Rs, $, EUR per invoice                | Low    | Medium | Nice
+ 6  | Credit notes/refunds  | Return/refund track                   | Medium | Medium | Nice
+ 7  | Expense tracking      | Vaangina bills-um track (accounting)  | High   | Medium | Later
+ 8  | Quotes/Estimates      | Quotation -> aprm invoice-a convert   | Medium | High   | Nice
+ 9  | Customer statement    | Oru customer ellaa invoice + balance  | Low    | Medium | Nice
+ 10 | Bulk actions          | Multi-select -> bulk send/delete/export | Low  | Medium | Nice
+ 11 | Export Excel/CSV      | Ellaa invoice download, GST filing-ku | Low    | High   | MUST
+ 12 | GST reports           | GSTR-ku ready summary (India)         | High   | High   | MUST
+ 13 | More templates        | Innum designs, customization          | Low    | Low    | Later
+ 14 | UPI QR on invoice     | Customer scan panni uddane pay        | Low    | High   | Nice
+ 15 | Activity log          | Yaaru enna maathinaanga track         | Medium | Medium | Later
+ 16 | Barcode scan -> item  | Item-la barcode save, invoice-la scan | Medium | High   | Nice
+    |                       | panna auto-add (Zoho maadhiri)        |        |        |
+ 17 | HSN/SAC code field    | Item-la HSN save, invoice-la auto     | Low    | High   | Nice
+    |                       | column. GST invoice-ku (details below)|        |        |
+------------------------------------------------------------------
+
+==================================================================
+   RECOMMENDED — MUTHALLA IDHU 4 (effort kammi + impact adhigam)
+==================================================================
+
+ [ ] 1. UPI QR code invoice-la  (#14)
+        - chinna vela, periya impact
+        - customer QR scan panni udane pay
+        - India-la game changer
+
+ [ ] 2. Excel/CSV export  (#11)
+        - GST filing-ku accountant-ku kudukka venum
+        - easy, essential
+
+ [ ] 3. PDF email send  (#1)
+        - "download -> attach -> send" moonu step
+          ore click aagum
+
+ [ ] 4. Quotes/Estimates  (#8)
+        - hardware store-ku super useful
+        - quote kuduthu, ok-na invoice-a convert
+
+------------------------------------------------------------------
+ Target: chinna kadai + freelancers, India, GST
+ Note: ellame panna vendam. Priority paathu, one by one.
+       Recurring invoices + full GST reports = periya impact
+       aana periya vela -> public pona piragu, users kettaa pannalaam.
+------------------------------------------------------------------
+
+
+==================================================================
+   BARCODE SCAN — eppdi work aagum (Zoho, supermarket same)
+==================================================================
+ - Barcode = number matum. Product details taana varaathu.
+ - "Global database" illa. Neenga item register pannum pothu
+   barcode-a save panna, aprm scan panna DB-la thedi item add.
+ - Reliance / DMart / Zoho ellame idhe principle, periya scale-la.
+ - Scan 2 vazhi:
+     A. Phone camera (PWA-ku perfect, free, @zxing library)
+     B. USB scanner (counter-ku, keyboard maadhiri, easy)
+ - Stock tracking, warehouse = periya scope, ippothaikku vendam.
+
+
+==================================================================
+   HSN / SAC CODE — details (un kelvikku badil)
+==================================================================
+ Q: HSN type pannuma illa taana varuma?
+   -> Item-la ORE THADAVA HSN type panni save.
+      Invoice-la taana column-a varum. (Zoho maadhiri)
+   -> Auto-select mudiyaathu: ore product rendu HSN-la varalaam,
+      entha code sari-nu vyapari than decide pannanum.
+      Software thappa select panna GST rate thappaagum.
+
+ Q: HSN only GST-registered person-ku matuma?
+   -> Aama, mostly. GST invoice podravanga than HSN podanum.
+   -> Turnover-ku eaethapadi digit maarum:
+        Rs 1.5 - 5 crore  -> 4 digit HSN (B2B mandatory)
+        Rs 5 crore mela    -> 6 digit HSN (ellaa invoice)
+        B2C (Rs 5cr keezha) -> optional
+   -> Register pannaathavanga (unregistered/composition) ku
+      strict-a thevai illa.
+
+ DESIGN: HSN-a OPTIONAL field-a aakkanum.
+   - GST person podanum, matravanga vittudalaam.
+   - Force panna koodaathu.
+   - Item-la HSN + tax rate save -> invoice-la auto.
+
+ NOTE: April 2025-la irundhu GSTR-1 Table 12-la HSN dropdown
+   selection venum (manual illa). Aana adhu GOVERNMENT PORTAL
+   filing side, un invoice app-la illa. App-la HSN field
+   podhum, filing thani.
+------------------------------------------------------------------

@@ -1,5 +1,20 @@
 import Invoice from '../models/Invoice.js';
 
+// Returns an existing invoice in the same company that already uses this
+// number (case-insensitive, trimmed), or null. `excludeId` skips the invoice
+// being edited so re-saving it doesn't clash with itself.
+async function findDuplicateNumber(number, companyId, excludeId) {
+  const trimmed = String(number || '').trim();
+  if (!trimmed) return null;
+  const esc = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const query = {
+    companyId,
+    number: { $regex: new RegExp('^' + esc + '$', 'i') }
+  };
+  if (excludeId) query._id = { $ne: excludeId };
+  return Invoice.findOne(query);
+}
+
 // All routes below are protected; req.user is the logged-in user.
 // Invoices are scoped to the user's companyId so team members share data.
 
@@ -13,9 +28,31 @@ export async function getInvoices(req, res) {
   }
 }
 
+// GET /api/invoices/check-number?number=INV-001&excludeId=<id>
+// Lightweight lookup used by the invoice form to tell the user, as they type,
+// whether a number is already taken. `excludeId` is the invoice being edited.
+export async function checkInvoiceNumber(req, res) {
+  try {
+    const { number, excludeId } = req.query;
+    const trimmed = String(number || '').trim();
+    if (!trimmed) return res.json({ available: true });
+    const dup = await findDuplicateNumber(trimmed, req.user.companyId, excludeId || null);
+    res.json({ available: !dup });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
 // POST /api/invoices
 export async function createInvoice(req, res) {
   try {
+    const dup = await findDuplicateNumber(req.body.number, req.user.companyId);
+    if (dup) {
+      return res.status(409).json({
+        code: 'DUPLICATE_NUMBER',
+        message: `Invoice number ${String(req.body.number).trim()} is already used. Please use a unique number.`
+      });
+    }
     const invoice = await Invoice.create({
       ...req.body,
       companyId: req.user.companyId,
@@ -32,6 +69,15 @@ export async function updateInvoice(req, res) {
   try {
     const invoice = await Invoice.findOne({ _id: req.params.id, companyId: req.user.companyId });
     if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
+    if (req.body.number) {
+      const dup = await findDuplicateNumber(req.body.number, req.user.companyId, invoice._id);
+      if (dup) {
+        return res.status(409).json({
+          code: 'DUPLICATE_NUMBER',
+          message: `Invoice number ${String(req.body.number).trim()} is already used. Please use a unique number.`
+        });
+      }
+    }
     Object.assign(invoice, req.body);
     await invoice.save();
     res.json(invoice);

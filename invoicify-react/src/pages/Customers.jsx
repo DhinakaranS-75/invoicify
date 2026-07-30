@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { generateId } from '../utils/format';
+import { statesForCountry } from '../utils/locationData';
 
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'United Arab Emirates', 'Australia', 'Canada', 'Singapore', 'Germany', 'Other'];
 
@@ -24,6 +25,9 @@ export default function Customers() {
 
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
   const setAddr = (which, k) => (e) => setForm((p) => ({ ...p, [which]: { ...p[which], [k]: e.target.value } }));
+  // Update several address fields at once (used when a parent field like
+  // Country changes and its dependent State/District must be reset).
+  const patchAddr = (which, patch) => setForm((p) => ({ ...p, [which]: { ...p[which], ...patch } }));
 
   const openNew = () => { setForm(EMPTY_FORM); setEditingId(null); setView('form'); };
 
@@ -80,7 +84,7 @@ export default function Customers() {
   return (
     <div className="page active">
       <div className="app-header-row">
-        <div><h1>Customers</h1><p className="hide-mobile">Save client details for faster invoicing.</p></div>
+        <div><h1 className="hide-mobile">Customers</h1><p className="hide-mobile">Save client details for faster invoicing.</p></div>
         {view === 'dashboard' && (
           <div className="header-actions">
             {selected.size === 1 && can('manageCustomers') && (
@@ -187,14 +191,14 @@ export default function Customers() {
                 )}
               </div>
 
-              <AddressSection title="Billing Address" which="billing" form={form} setAddr={setAddr} required />
+              <AddressSection title="Billing Address" which="billing" form={form} setAddr={setAddr} patchAddr={patchAddr} required />
 
               <div className="section-gap">
                 <div className="cust-ship-header">
                   <h3 style={{ margin: 0 }}>Shipping Address</h3>
                   <button type="button" className="btn btn-small btn-outline" onClick={copyBillingToShipping}><i className="fa-solid fa-copy"></i> Same as Billing</button>
                 </div>
-                <AddressFields which="shipping" form={form} setAddr={setAddr} />
+                <AddressFields which="shipping" form={form} setAddr={setAddr} patchAddr={patchAddr} />
               </div>
 
               <div className="actions-row section-gap">
@@ -240,31 +244,92 @@ export default function Customers() {
   );
 }
 
-function AddressSection({ title, which, form, setAddr, required }) {
+function AddressSection({ title, which, form, setAddr, patchAddr, required }) {
   return (
     <div className="section-gap">
       <h3>{title}</h3>
-      <AddressFields which={which} form={form} setAddr={setAddr} required={required} />
+      <AddressFields which={which} form={form} setAddr={setAddr} patchAddr={patchAddr} required={required} />
     </div>
   );
 }
 
-function AddressFields({ which, form, setAddr, required }) {
+function AddressFields({ which, form, setAddr, patchAddr, required }) {
   const a = form[which];
   const req = required ? <span className="req-star">*</span> : null;
+
+  const states = statesForCountry(a.country); // strict list for India etc., or [] => free text
+
+  // Pincode -> State/District auto-fill (India only, via the free India Post API).
+  // status: idle | checking | found | notfound | error
+  const [pinStatus, setPinStatus] = useState('idle');
+  const lastLookup = useRef('');
+
+  const onCountry = (e) => { setPinStatus('idle'); patchAddr(which, { country: e.target.value, state: '', city: '' }); };
+
+  const onPincode = (e) => {
+    const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+    setAddr(which, 'pincode')({ target: { value } });
+  };
+
+  useEffect(() => {
+    const pin = (a.pincode || '').trim();
+    if (a.country !== 'India' || pin.length !== 6) { setPinStatus('idle'); return undefined; }
+    if (lastLookup.current === pin) return undefined; // already handled this pin
+
+    setPinStatus('checking');
+    const controller = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`, { signal: controller.signal });
+        const data = await res.json();
+        const entry = Array.isArray(data) ? data[0] : null;
+        const po = entry && entry.Status === 'Success' && entry.PostOffice && entry.PostOffice[0];
+        if (!po) { setPinStatus('notfound'); return; }
+        lastLookup.current = pin;
+        patchAddr(which, { state: po.State || a.state, city: po.District || a.city });
+        setPinStatus('found');
+      } catch (err) {
+        if (err.name !== 'AbortError') setPinStatus('error');
+      }
+    }, 450);
+    return () => { controller.abort(); clearTimeout(t); };
+  }, [a.pincode, a.country]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="grid2">
       <div className="field-sm"><label>Attention</label><input value={a.attention} onChange={setAddr(which, 'attention')} placeholder="Contact person" /></div>
       <div className="field-sm"><label>Country / Region</label>
-        <select value={a.country} onChange={setAddr(which, 'country')}>
+        <select value={a.country} onChange={onCountry}>
           {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
       <div className="field-sm"><label>Street 1</label><input value={a.street1} onChange={setAddr(which, 'street1')} placeholder="Street address line 1" /></div>
       <div className="field-sm"><label>Street 2</label><input value={a.street2} onChange={setAddr(which, 'street2')} placeholder="Street address line 2" /></div>
-      <div className="field-sm"><label>City {req}</label><input value={a.city} onChange={setAddr(which, 'city')} placeholder="City" /></div>
-      <div className="field-sm"><label>State {req}</label><input value={a.state} onChange={setAddr(which, 'state')} placeholder="State" /></div>
-      <div className="field-sm"><label>Pin Code</label><input value={a.pincode} onChange={(e) => setAddr(which, 'pincode')({ target: { value: e.target.value.replace(/[^0-9]/g, '') } })} placeholder="600001" inputMode="numeric" /></div>
+
+      <div className="field-sm"><label>Pin Code</label>
+        <input value={a.pincode} onChange={onPincode} placeholder="600001" inputMode="numeric" />
+        {a.country === 'India' && pinStatus === 'checking' && <div className="pin-hint pin-checking"><i className="fa-solid fa-circle-notch fa-spin"></i> Looking up…</div>}
+        {a.country === 'India' && pinStatus === 'found' && <div className="pin-hint pin-ok"><i className="fa-solid fa-circle-check"></i> State &amp; district filled</div>}
+        {a.country === 'India' && pinStatus === 'notfound' && <div className="pin-hint pin-bad"><i className="fa-solid fa-circle-info"></i> Pincode not found — enter manually</div>}
+        {a.country === 'India' && pinStatus === 'error' && <div className="pin-hint pin-bad"><i className="fa-solid fa-circle-info"></i> Couldn't look up — enter manually</div>}
+      </div>
+
+      <div className="field-sm"><label>State {req}</label>
+        {states.length > 0 ? (
+          <select value={a.state} onChange={setAddr(which, 'state')}>
+            <option value="">Select state…</option>
+            {states.map((st) => <option key={st} value={st}>{st}</option>)}
+            {a.state && !states.includes(a.state) && <option value={a.state}>{a.state}</option>}
+          </select>
+        ) : (
+          <input value={a.state} onChange={setAddr(which, 'state')} placeholder="State / Province" />
+        )}
+      </div>
+
+      <div className="field-sm"><label>City / District {req}</label>
+        <input value={a.city} onChange={setAddr(which, 'city')} placeholder="City / District" />
+      </div>
+
       <div className="field-sm"><label>Phone</label><input value={a.phone} onChange={setAddr(which, 'phone')} placeholder="+91 90000 00000" /></div>
     </div>
   );

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getInvoices, createInvoice, updateInvoice, deleteInvoice } from '../controllers/invoiceController.js';
+import { getInvoices, createInvoice, updateInvoice, deleteInvoice, checkInvoiceNumber } from '../controllers/invoiceController.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -8,6 +8,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/', getInvoices);
+router.get('/check-number', checkInvoiceNumber);
 router.post('/', createInvoice);
 router.put('/:id', updateInvoice);
 router.delete('/:id', deleteInvoice);

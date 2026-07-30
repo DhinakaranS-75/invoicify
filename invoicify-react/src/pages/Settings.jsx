@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { isValidEmail, ROLE_LABELS } from '../utils/format';
 import { buildInvoiceNumber } from '../utils/invoiceNumber';
+import { INDIA_STATES } from '../utils/locationData';
 
 const TEMPLATES = [
   { id: 'classic', name: 'Classic', desc: 'Colorful bands, bold and friendly.',
@@ -268,7 +269,13 @@ function CompanyTab() {
         <div className="field-note" style={{ marginBottom: '12px' }}>Email &amp; phone show under "For any questions" on your invoices.</div>
         <div className="grid2">
           <div className="field-sm"><label>Address</label><input value={f.address} onChange={set('address')} placeholder="Street, City" /></div>
-          <div className="field-sm"><label>State</label><input value={f.state} onChange={set('state')} placeholder="Tamil Nadu" /></div>
+          <div className="field-sm"><label>State</label>
+            <select value={f.state} onChange={set('state')}>
+              <option value="">Select state…</option>
+              {INDIA_STATES.map((st) => <option key={st} value={st}>{st}</option>)}
+              {f.state && !INDIA_STATES.includes(f.state) && <option value={f.state}>{f.state}</option>}
+            </select>
+          </div>
         </div>
         <div className="field-sm"><label>GST Number</label><input value={f.gst} onChange={set('gst')} placeholder="22AAAAA0000A1Z5" /></div>
 

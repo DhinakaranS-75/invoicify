@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { api } from '../utils/api';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { fmt } from '../utils/format';
@@ -51,6 +52,33 @@ export default function InvoiceForm({ editingId, onBack }) {
 
   // Invoice-number customizer modal (opens from the gear inside the Invoice Number field)
   const [numDialog, setNumDialog] = useState(false);
+  const [numberError, setNumberError] = useState(false); // duplicate invoice number
+  // Live availability of the invoice number: idle | checking | ok | taken
+  const [numberStatus, setNumberStatus] = useState('idle');
+
+  // Ask the server whether the typed invoice number is free, 500ms after the
+  // user stops typing. Skipped while empty. On an edit we pass excludeId so the
+  // invoice's own number doesn't count as a clash.
+  useEffect(() => {
+    const num = (details?.number || '').trim();
+    if (!num) { setNumberStatus('idle'); return undefined; }
+    setNumberStatus('checking');
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const qs = new URLSearchParams({ number: num });
+        if (editing) qs.set('excludeId', editing._id || editing.id);
+        const res = await api.get('/api/invoices/check-number?' + qs.toString());
+        if (cancelled) return;
+        setNumberStatus(res.available ? 'ok' : 'taken');
+        setNumberError(res.available ? false : true);
+      } catch {
+        if (!cancelled) setNumberStatus('idle'); // network hiccup: stay quiet, save still guards
+      }
+    }, 500);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [details.number, editing]);
+
   const [numCfg, setNumCfg] = useState(invoiceNumberConfig);
   const openNumberDialog = () => { setNumCfg(invoiceNumberConfig); setNumDialog(true); };
   const numCfgSet = (k) => (e) => setNumCfg((p) => ({ ...p, [k]: e.target.value }));
@@ -179,6 +207,14 @@ export default function InvoiceForm({ editingId, onBack }) {
       }
       onBack();
     } catch (err) {
+      // Backend rejects a number already used in this company (GST needs them
+      // unique). Keep the form open and point the user at the number field.
+      if (err && (err.code === 'DUPLICATE_NUMBER' || /already used/i.test(err.message || ''))) {
+        setNumberError(true);
+        setTab('edit');
+        toast('Duplicate invoice number', err.message || `Invoice number ${details.number} is already used.`, 'error');
+        return;
+      }
       toast('Save failed', err.message || 'Could not save the invoice.', 'error');
     }
   };
@@ -290,9 +326,12 @@ export default function InvoiceForm({ editingId, onBack }) {
                   <div className="field-sm">
                     <label>Invoice Number</label>
                     <div className="input-with-icon">
-                      <input value={details.number} onChange={(e) => setDetails({ ...details, number: e.target.value })} />
+                      <input className={numberError ? 'invalid' : ''} value={details.number} onChange={(e) => { setNumberError(false); setDetails({ ...details, number: e.target.value }); }} />
                       <button type="button" className="input-icon-btn" title="Customize invoice number" onClick={openNumberDialog}><i className="fa-solid fa-gear"></i></button>
                     </div>
+                    {numberStatus === 'checking' && <div className="num-hint num-checking"><i className="fa-solid fa-circle-notch fa-spin"></i> Checking…</div>}
+                    {numberStatus === 'ok' && <div className="num-hint num-ok"><i className="fa-solid fa-circle-check"></i> Available</div>}
+                    {numberStatus === 'taken' && <div className="num-hint num-taken"><i className="fa-solid fa-circle-exclamation"></i> Already used — pick another</div>}
                   </div>
                   <div className="field-sm"><label>Order Number</label><input value={details.orderNumber} onChange={(e) => setDetails({ ...details, orderNumber: e.target.value })} placeholder="ORD-0001" /></div>
                 </div>
