@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.invoicify_rosy.twa",
+      "sha256_cert_fingerprints": [
+        "5F:65:29:34:FF:39:1D:75:CB:F2:AC:9F:9D:43:E4:40:45:87:B4:A6:B3:82:48:27:07:C2:34:CD:C9:87:48:C9"
+      ]
+    }
+  }
+]
