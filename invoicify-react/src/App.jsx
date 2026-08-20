@@ -25,10 +25,18 @@ function Root() {
 
   // Not logged in:
   //   /login, /signup, /forgot, /reset -> the auth screens
-  //   anything else (including /) -> the public landing page
+  //   anything else in a normal browser tab -> the public landing page
+  //   anything else in the installed app (PWA/TWA standalone) -> straight to login,
+  //   since someone who already installed the app doesn't need the marketing pitch
   if (!currentUser) {
     const authPaths = ['/login', '/signup', '/forgot', '/reset'];
     if (authPaths.some((pth) => pathname.startsWith(pth))) return <AuthScreen />;
+
+    const isInstalledApp =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true; // iOS Safari "Add to Home Screen"
+    if (isInstalledApp) return <AuthScreen />;
+
     return <Landing />;
   }
 
