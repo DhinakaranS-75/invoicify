@@ -40,7 +40,8 @@ export function DataProvider({ children }) {
   const [catalogItems, setCatalogItems] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
 
-  // Income/expense are still local for now (dashboard-only feature)
+  // Income is still local for now (dashboard-only feature).
+  // Expenses are saved to the backend (see loadAllData / addExpense below).
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
 
@@ -60,15 +61,17 @@ export function DataProvider({ children }) {
   // ---- Load all company data after login ----
   const loadAllData = useCallback(async () => {
     try {
-      const [inv, cust, items, teamRes] = await Promise.all([
+      const [inv, cust, items, exp, teamRes] = await Promise.all([
         api.get('/api/invoices'),
         api.get('/api/customers'),
         api.get('/api/items'),
+        api.get('/api/expenses'),
         api.get('/api/auth/team').catch(() => ({ team: [] }))
       ]);
       setInvoices(withIds(inv));
       setCustomers(withIds(cust));
       setCatalogItems(withIds(items));
+      setExpenses(withIds(exp));
       setTeamMembers(withIds(teamRes?.team));
     } catch (err) {
       console.error('Failed to load data:', err.message);
@@ -319,11 +322,20 @@ export function DataProvider({ children }) {
     setCatalogItems((prev) => prev.filter((i) => !ids.includes(i._id) && !ids.includes(i.id)));
   }, []);
 
-  // ---- Income / Expense (local only for now) ----
+  // ---- Income (local only for now) ----
   const addIncome = useCallback((entry) => setIncomes((prev) => [...prev, entry]), []);
   const deleteIncome = useCallback((id) => setIncomes((prev) => prev.filter((e) => e.id !== id)), []);
-  const addExpense = useCallback((entry) => setExpenses((prev) => [...prev, entry]), []);
-  const deleteExpense = useCallback((id) => setExpenses((prev) => prev.filter((e) => e.id !== id)), []);
+
+  // ---- Expenses (saved to the backend) ----
+  const addExpense = useCallback(async (entry) => {
+    const created = await api.post('/api/expenses', entry);
+    setExpenses((prev) => [...prev, withId(created)]);
+    return created;
+  }, []);
+  const deleteExpense = useCallback(async (id) => {
+    await api.del(`/api/expenses/${id}`);
+    setExpenses((prev) => prev.filter((e) => e._id !== id && e.id !== id));
+  }, []);
 
   // ---- Team ----
   const loadTeam = useCallback(async () => {

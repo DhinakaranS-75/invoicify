@@ -10,7 +10,7 @@ import GettingStarted from '../components/GettingStarted';
 export default function Home() {
   const {
     currentUser, invoices, customers, catalogItems,
-    incomes, expenses, addIncome, deleteIncome, addExpense, deleteExpense, currency
+    incomes, expenses, addIncome, deleteIncome, currency
   } = useData();
   const { theme } = useTheme();
   const { toast } = useToast();
@@ -18,7 +18,6 @@ export default function Home() {
   const [cashflowPeriod, setCashflowPeriod] = useState('fy_current');
   const [methodPeriod, setMethodPeriod] = useState('fy_current');
   const [incomeOpen, setIncomeOpen] = useState(false);
-  const [expenseOpen, setExpenseOpen] = useState(false);
 
   const firstName = (currentUser?.firstName || currentUser?.name || 'there').split(' ')[0];
 
@@ -185,8 +184,7 @@ export default function Home() {
       {/* Add Income */}
       <IncomePanel open={incomeOpen} setOpen={setIncomeOpen} incomes={incomes} addIncome={addIncome} deleteIncome={deleteIncome} currency={currency} toast={toast} />
 
-      {/* Add Expense */}
-      <ExpensePanel open={expenseOpen} setOpen={setExpenseOpen} expenses={expenses} addExpense={addExpense} deleteExpense={deleteExpense} currency={currency} toast={toast} />
+      {/* Add Expense now lives on its own page — see the "Expenses" nav item */}
 
       {/* Recent Invoices */}
       <div className="panel section-gap">
@@ -251,66 +249,6 @@ function IncomePanel({ open, setOpen, incomes, addIncome, deleteIncome, currency
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span className="amt-col" style={{ color: 'var(--teal)' }}>{fmt(e.amount, currency)}</span>
                   <button className="pay-history-del" onClick={() => deleteIncome(e.id)}><i className="fa-solid fa-trash-can"></i></button>
-                </div>
-              </div>
-            ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ExpensePanel({ open, setOpen, expenses, addExpense, deleteExpense, currency, toast }) {
-  const [f, setF] = useState({ desc: '', amount: '', date: new Date().toISOString().slice(0, 10), category: 'Rent', method: 'Cash' });
-  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
-
-  const submit = () => {
-    const amount = parseFloat(f.amount);
-    if (!f.desc.trim()) { toast('Description required', 'Enter an expense description.', 'error'); return; }
-    if (isNaN(amount) || amount <= 0) { toast('Invalid amount', 'Enter a valid amount.', 'error'); return; }
-    addExpense({ id: generateId('EXP'), desc: f.desc, amount, date: f.date, category: f.category, method: f.method });
-    setF({ desc: '', amount: '', date: new Date().toISOString().slice(0, 10), category: 'Rent', method: 'Cash' });
-    toast('Expense added', `${fmt(amount, currency)} recorded.`);
-  };
-
-  return (
-    <div className="panel section-gap">
-      <div className="collapsible-header" onClick={() => setOpen((o) => !o)}>
-        <h3 style={{ margin: 0 }}>Add Expense</h3>
-        <i className={'fa-solid fa-chevron-down' + (open ? ' open' : '')}></i>
-      </div>
-      {open && (
-        <div>
-          <div className="grid2 section-gap">
-            <div className="field-sm"><label>Description</label><input value={f.desc} onChange={set('desc')} placeholder="Office Rent" /></div>
-            <div className="field-sm"><label>Amount</label><input type="number" min="0" step="0.01" value={f.amount} onChange={set('amount')} placeholder="0.00" /></div>
-            <div className="field-sm"><label>Date</label><input type="date" value={f.date} onChange={set('date')} /></div>
-            <div className="field-sm"><label>Category</label>
-              <select value={f.category} onChange={set('category')}>
-                <option value="Rent">Rent</option><option value="Salaries">Salaries</option><option value="Supplies">Supplies</option>
-                <option value="Utilities">Utilities</option><option value="Marketing">Marketing</option><option value="Other">Other</option>
-              </select>
-            </div>
-            <div className="field-sm"><label>Payment Method</label>
-              <select value={f.method} onChange={set('method')}>
-                <option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Bank Account">Bank Account</option>
-              </select>
-            </div>
-          </div>
-          <button className="btn btn-small btn-orange" onClick={submit}><i className="fa-solid fa-plus"></i> Add Expense</button>
-        </div>
-      )}
-      <div className="section-gap">
-        <h3>Recent Expenses</h3>
-        <div className="saved-list">
-          {expenses.length === 0
-            ? <p className="empty-line" style={{ fontSize: '13px' }}>No expenses recorded yet.</p>
-            : expenses.slice().reverse().slice(0, 5).map((e) => (
-              <div className="saved-item" key={e.id}>
-                <div><strong>{e.desc}</strong>{e.date} · {e.category} · {e.method}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span className="amt-col" style={{ color: 'var(--danger)' }}>{fmt(e.amount, currency)}</span>
-                  <button className="pay-history-del" onClick={() => deleteExpense(e.id)}><i className="fa-solid fa-trash-can"></i></button>
                 </div>
               </div>
             ))}

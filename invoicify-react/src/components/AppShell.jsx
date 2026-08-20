@@ -11,16 +11,17 @@ import Invoices from '../pages/Invoices';
 import Items from '../pages/Items';
 import Customers from '../pages/Customers';
 import Reports from '../pages/Reports';
+import Expenses from '../pages/Expenses';
 import Settings from '../pages/Settings';
 
 // Maps our internal page keys to URL paths
 const PAGE_PATHS = {
   home: '/home', item: '/items', invoice: '/invoices',
-  customer: '/customers', reports: '/reports', profile: '/settings'
+  customer: '/customers', reports: '/reports', expense: '/expenses', profile: '/settings'
 };
 const PATH_TITLES = {
   '/home': '', '/items': 'Items', '/invoices': 'Invoices',
-  '/customers': 'Customers', '/reports': 'Reports', '/settings': 'Settings'
+  '/customers': 'Customers', '/reports': 'Reports', '/expenses': 'Expenses', '/settings': 'Settings'
 };
 
 export default function AppShell() {
@@ -109,7 +110,8 @@ export default function AppShell() {
     { key: 'item', path: '/items', icon: 'fa-box', label: 'Items', show: can('manageItems') },
     { key: 'invoice', path: '/invoices', icon: 'fa-file-invoice', label: 'Invoices', show: true },
     { key: 'customer', path: '/customers', icon: 'fa-users', label: 'Customers', show: can('manageCustomers') },
-    { key: 'reports', path: '/reports', icon: 'fa-chart-pie', label: 'Reports', show: can('viewReports') }
+    { key: 'reports', path: '/reports', icon: 'fa-chart-pie', label: 'Reports', show: can('viewReports') },
+    { key: 'expense', path: '/expenses', icon: 'fa-wallet', label: 'Expenses', show: true }
   ];
 
   return (
@@ -236,6 +238,7 @@ export default function AppShell() {
             <Route path="/items" element={can('manageItems') ? <Items /> : <Navigate to="/home" replace />} />
             <Route path="/customers" element={can('manageCustomers') ? <Customers /> : <Navigate to="/home" replace />} />
             <Route path="/reports" element={can('viewReports') ? <Reports /> : <Navigate to="/home" replace />} />
+            <Route path="/expenses" element={<Expenses />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>

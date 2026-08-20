@@ -9,6 +9,7 @@ import authRoutes from './routes/authRoutes.js';
 import invoiceRoutes from './routes/invoiceRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
 import itemRoutes from './routes/itemRoutes.js';
+import expenseRoutes from './routes/expenseRoutes.js';
 
 // Load environment variables from .env
 dotenv.config();
@@ -48,6 +49,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/items', itemRoutes);
+app.use('/api/expenses', expenseRoutes);
 
 // ---- 404 handler ----
 app.use((req, res) => {

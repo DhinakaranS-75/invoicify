@@ -21,6 +21,19 @@ async function findDuplicateNumber(number, companyId, excludeId) {
 // GET /api/invoices
 export async function getInvoices(req, res) {
   try {
+    // Lazily flip Sent/Unpaid invoices to Overdue once their due date has
+    // passed. Runs on every fetch instead of a cron job — cheap, and keeps
+    // the stored status field (used by filters/reports) always accurate.
+    const today = new Date().toISOString().slice(0, 10);
+    await Invoice.updateMany(
+      {
+        companyId: req.user.companyId,
+        status: { $in: ['Sent', 'Unpaid'] },
+        dueDate: { $lt: today },
+      },
+      { $set: { status: 'Overdue' } }
+    );
+
     const invoices = await Invoice.find({ companyId: req.user.companyId }).sort({ createdAt: 1 });
     res.json(invoices);
   } catch (err) {
