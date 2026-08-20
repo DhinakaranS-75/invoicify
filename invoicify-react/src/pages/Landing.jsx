@@ -58,7 +58,7 @@ export default function Landing() {
       <header className="lp-nav">
         <div className="lp-wrap lp-nav-inner">
           <div className="lp-brand">
-            <span className="lp-brand-mark"><i className="fa-solid fa-file-invoice-dollar"></i></span>
+            <img src="/pwa-192x192.png" alt="Invoicify" className="lp-brand-logo" />
             <span className="lp-brand-name">Invoicify</span>
           </div>
           <nav className="lp-nav-links">
@@ -170,7 +170,7 @@ export default function Landing() {
       <footer className="lp-footer">
         <div className="lp-wrap lp-footer-inner">
           <div className="lp-brand">
-            <span className="lp-brand-mark"><i className="fa-solid fa-file-invoice-dollar"></i></span>
+            <img src="/pwa-192x192.png" alt="Invoicify" className="lp-brand-logo" />
             <span className="lp-brand-name">Invoicify</span>
           </div>
           <div className="lp-footer-links">
