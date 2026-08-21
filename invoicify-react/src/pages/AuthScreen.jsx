@@ -133,6 +133,7 @@ function RegisterForm({ goTo }) {
   const { toast } = useToast();
   const [f, setF] = useState({ firstName: '', lastName: '', email: '', password: '', confirm: '' });
   const [errors, setErrors] = useState({});
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [shake, setShake] = useState(false);
@@ -146,6 +147,7 @@ function RegisterForm({ goTo }) {
     if (!isValidEmail(f.email)) errs.email = 'Enter a valid email.';
     if (f.password.length < 8) errs.password = 'Min 8 characters.';
     if (f.password !== f.confirm) errs.confirm = 'Passwords do not match.';
+    if (!agreeToTerms) errs.terms = 'You must agree to the Terms and Privacy Policy to continue.';
     setErrors(errs);
     if (Object.keys(errs).length) { doShake(); return; }
     try {
@@ -192,7 +194,22 @@ function RegisterForm({ goTo }) {
           <i className={'fa-solid ' + (showConfirm ? 'fa-eye-slash' : 'fa-eye')}></i>
         </button>
       </Field>
-      <button className="btn btn-orange btn-block" onClick={submit}>Signup</button>
+      <label className="terms-check" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '14px 0', fontSize: '13px', lineHeight: 1.5, cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={agreeToTerms}
+          onChange={(e) => { setAgreeToTerms(e.target.checked); setErrors((p) => ({ ...p, terms: undefined })); }}
+          style={{ marginTop: '2px' }}
+        />
+        <span>
+          I agree to the{' '}
+          <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+          {' '}and{' '}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+        </span>
+      </label>
+      {errors.terms && <p style={{ color: 'var(--danger)', fontSize: '12.5px', margin: '-8px 0 12px' }}>{errors.terms}</p>}
+      <button className="btn btn-orange btn-block" onClick={submit} disabled={!agreeToTerms}>Signup</button>
       <div className="auth-links">Already have an account? <a onClick={() => goTo('login')}>Login</a></div>
     </>
   );

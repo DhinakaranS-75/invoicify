@@ -177,6 +177,8 @@ export default function Landing() {
             <button className="lp-link-btn" onClick={goLogin}>Log in</button>
             <button className="lp-link-btn" onClick={goSignup}>Sign up</button>
             <a href="#features" className="lp-nav-link">Features</a>
+            <a href="/terms" className="lp-nav-link">Terms</a>
+            <a href="/privacy" className="lp-nav-link">Privacy</a>
           </div>
           {/* Change this to your name / brand */}
           <div className="lp-footer-credit">Built by Dhinakaran · © {new Date().getFullYear()} Invoicify</div>

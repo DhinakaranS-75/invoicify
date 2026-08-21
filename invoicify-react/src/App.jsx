@@ -9,12 +9,19 @@ import Onboarding from './pages/Onboarding';
 import BootSplash from './components/BootSplash';
 import InviteAccept from './pages/InviteAccept';
 import Landing from './pages/Landing';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
 import IdleWarning from './components/IdleWarning';
 import InstallPrompt from './components/InstallPrompt';
 
 function Root() {
   const { currentUser, booting } = useData();
   const { pathname } = useLocation();
+
+  // Legal pages are public and don't depend on auth/boot state at all —
+  // check them first so they're instant even before the login check runs.
+  if (pathname === '/terms') return <Terms />;
+  if (pathname === '/privacy') return <Privacy />;
 
   // Team invitation links (/invite/<token>) always open the accept page,
   // whether or not someone is already logged in on this device.

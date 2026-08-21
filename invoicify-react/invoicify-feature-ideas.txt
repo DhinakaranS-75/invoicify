@@ -2,54 +2,78 @@
    INVOICIFY — FEATURE IDEAS (add pannalaam list)
 ==================================================================
 
-Already done: auth, team invite, invoices, customers, items,
-reports, payments, PWA, dark mode, search, filters, status colors,
-duplicate check, pincode auto-fill, landing page.
+Already done: auth ✅, team invite ✅, invoices ✅, customers ✅, items ✅,
+reports ✅, payments ✅, PWA ✅, dark mode ✅, search ✅, filters ✅,
+status colors ✅, duplicate check ✅, pincode auto-fill ✅, landing page ✅,
+expense tracking ✅, dashboard analytics ✅, 9 invoice templates ✅.
+
+Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
 
 ------------------------------------------------------------------
- #  | FEATURE               | ENNA                                  | EFFORT | IMPACT | PRIORITY
+ #  | FEATURE               | ENNA                                  | EFFORT | IMPACT | PRIORITY | STATUS
 ------------------------------------------------------------------
- 1  | PDF email send        | "Send" button -> customer email-ku    | Medium | High   | MUST
-    |                       | PDF neradiya anupurathu               |        |        |
- 2  | Recurring invoices    | Monthly rent/subscription auto        | High   | High   | MUST
-    |                       | generate                              |        |        |
- 3  | Payment reminders     | Overdue-ku auto email reminder        | Medium | High   | MUST
- 4  | Dashboard analytics   | Revenue graph, top customers, trends  | Medium | High   | Nice
- 5  | Multi-currency        | Rs, $, EUR per invoice                | Low    | Medium | Nice
- 6  | Credit notes/refunds  | Return/refund track                   | Medium | Medium | Nice
- 7  | Expense tracking      | Vaangina bills-um track (accounting)  | High   | Medium | Later
- 8  | Quotes/Estimates      | Quotation -> aprm invoice-a convert   | Medium | High   | Nice
- 9  | Customer statement    | Oru customer ellaa invoice + balance  | Low    | Medium | Nice
- 10 | Bulk actions          | Multi-select -> bulk send/delete/export | Low  | Medium | Nice
- 11 | Export Excel/CSV      | Ellaa invoice download, GST filing-ku | Low    | High   | MUST
- 12 | GST reports           | GSTR-ku ready summary (India)         | High   | High   | MUST
- 13 | More templates        | Innum designs, customization          | Low    | Low    | Later
- 14 | UPI QR on invoice     | Customer scan panni uddane pay        | Low    | High   | Nice
- 15 | Activity log          | Yaaru enna maathinaanga track         | Medium | Medium | Later
- 16 | Barcode scan -> item  | Item-la barcode save, invoice-la scan | Medium | High   | Nice
-    |                       | panna auto-add (Zoho maadhiri)        |        |        |
- 17 | HSN/SAC code field    | Item-la HSN save, invoice-la auto     | Low    | High   | Nice
-    |                       | column. GST invoice-ku (details below)|        |        |
+ 1  | PDF email send        | "Send" button -> customer email-ku    | Medium | High   | MUST     | ❌
+    |                       | PDF neradiya anupurathu               |        |        |          |
+ 2  | Recurring invoices    | Monthly rent/subscription auto        | High   | High   | MUST     | ❌
+    |                       | generate                              |        |        |          |
+ 3  | Payment reminders     | Overdue-ku auto email reminder        | Medium | High   | MUST     | ❌
+ 4  | Dashboard analytics   | Revenue graph, top customers, trends  | Medium | High   | Nice     | ✅
+    |                       | (cashflow chart, income/expense by    |        |        |          |
+    |                       | method, top 5 customers/items done)   |        |        |          |
+ 5  | Multi-currency        | Rs, $, EUR per invoice                | Low    | Medium | Nice     | ❌
+    |                       | (currency is one setting per company, |        |        |          |
+    |                       | not selectable per invoice yet)       |        |        |          |
+ 6  | Credit notes/refunds  | Return/refund track                   | Medium | Medium | Nice     | ❌
+ 7  | Expense tracking      | Vaangina bills-um track (accounting)  | High   | Medium | Later    | ✅
+    |                       | (own dashboard page, cloud-saved,     |        |        |          |
+    |                       | Purchases/COGS category added)        |        |        |          |
+ 8  | Quotes/Estimates      | Quotation -> aprm invoice-a convert   | Medium | High   | Nice     | ❌
+ 9  | Customer statement    | Oru customer ellaa invoice + balance  | Low    | Medium | Nice     | ❌
+ 10 | Bulk actions          | Multi-select -> bulk send/delete/export | Low  | Medium | Nice     | ⚠️
+    |                       | (bulk DELETE done on Invoices &       |        |        |          |
+    |                       | Expenses; bulk send/export pending)   |        |        |          |
+ 11 | Export Excel/CSV      | Ellaa invoice download, GST filing-ku | Low    | High   | MUST     | ❌
+ 12 | GST reports           | GSTR-ku ready summary (India)         | High   | High   | MUST     | ⚠️
+    |                       | (Taxable Amount + Tax Collected stat  |        |        |          |
+    |                       | cards done; full GSTR-1 style table,  |        |        |          |
+    |                       | HSN-wise breakup — pending)           |        |        |          |
+ 13 | More templates        | Innum designs, customization          | Low    | Low    | Later    | ✅
+    |                       | (9 templates: classic, corporate,     |        |        |          |
+    |                       | creative, minimal, elegant, modern,   |        |        |          |
+    |                       | redline, executive, goldline)         |        |        |          |
+ 14 | UPI QR on invoice     | Customer scan panni uddane pay        | Low    | High   | Nice     | ❌
+    |                       | ("UPI" exists only as a payment-      |        |        |          |
+    |                       | method label, no actual QR code yet)  |        |        |          |
+ 15 | Activity log          | Yaaru enna maathinaanga track         | Medium | Medium | Later    | ❌
+ 16 | Barcode scan -> item  | Item-la barcode save, invoice-la scan | Medium | High   | Nice     | ❌
+    |                       | panna auto-add (Zoho maadhiri)        |        |        |          |
+ 17 | HSN/SAC code field    | Item-la HSN save, invoice-la auto     | Low    | High   | Nice     | ❌
+    |                       | column. GST invoice-ku (details below)|        |        |          |
+ 18 | Switch OTP mail to    | Gmail SMTP = 100/day limit + account  | Low    | Medium | Should   | ❌
+    | Brevo (or similar)    | risk. Brevo free tier = 300/day,      |        |        | (before  |
+    |                       | built for transactional mail. Swap    |        |        | scaling  |
+    |                       | is easy — mailer.js already           |        |        | users)   |
+    |                       | provider-agnostic.                    |        |        |          |
 ------------------------------------------------------------------
 
 ==================================================================
    RECOMMENDED — MUTHALLA IDHU 4 (effort kammi + impact adhigam)
 ==================================================================
 
- [ ] 1. UPI QR code invoice-la  (#14)
+ [ ] 1. UPI QR code invoice-la  (#14)  — ❌ pending
         - chinna vela, periya impact
         - customer QR scan panni udane pay
         - India-la game changer
 
- [ ] 2. Excel/CSV export  (#11)
+ [ ] 2. Excel/CSV export  (#11)  — ❌ pending
         - GST filing-ku accountant-ku kudukka venum
         - easy, essential
 
- [ ] 3. PDF email send  (#1)
+ [ ] 3. PDF email send  (#1)  — ❌ pending
         - "download -> attach -> send" moonu step
           ore click aagum
 
- [ ] 4. Quotes/Estimates  (#8)
+ [ ] 4. Quotes/Estimates  (#8)  — ❌ pending
         - hardware store-ku super useful
         - quote kuduthu, ok-na invoice-a convert
 
