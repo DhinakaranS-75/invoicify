@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
@@ -12,11 +12,23 @@ import PasswordStrength from '../components/PasswordStrength';
 // After a successful login we send them back there rather than to /home.
 const APP_PATHS = ['/home', '/items', '/invoices', '/customers', '/reports', '/settings'];
 
+// The installed app (PWA/TWA) always lands here with a plain "/" — there's
+// no /login or /signup in the URL to go on. So the very first time this
+// device ever opens the auth screen we default to Signup (a fresh install
+// almost always means a brand-new user); every time after that, once this
+// flag is set, we default to Login instead.
+const LAUNCHED_KEY = 'invoicify_launched_before';
+
 export default function AuthScreen() {
   const initialLocation = useLocation();
-  const [view, setView] = useState(
-    initialLocation.pathname.startsWith('/signup') ? 'register' : 'login'
-  ); // login | register | forgot | reset | setpw
+  const [view, setView] = useState(() => {
+    if (initialLocation.pathname.startsWith('/signup')) return 'register';
+    if (initialLocation.pathname.startsWith('/login')) return 'login';
+    return localStorage.getItem(LAUNCHED_KEY) ? 'login' : 'register';
+  }); // login | register | forgot | reset | setpw
+  useEffect(() => {
+    localStorage.setItem(LAUNCHED_KEY, '1');
+  }, []);
   const [resetEmail, setResetEmail] = useState('');
   // Credentials of an invited member who just logged in with a temporary password
   const [pending, setPending] = useState(null);
