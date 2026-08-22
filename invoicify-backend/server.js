@@ -10,6 +10,7 @@ import invoiceRoutes from './routes/invoiceRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
 import itemRoutes from './routes/itemRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
+import cronRoutes from './routes/cronRoutes.js';
 
 // Load environment variables from .env
 dotenv.config();
@@ -50,6 +51,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/cron', cronRoutes);
 
 // ---- 404 handler ----
 app.use((req, res) => {
@@ -91,4 +93,3 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('   ✨  Ready to roll — happy invoicing!  🎉');
   console.log('');
 });
-

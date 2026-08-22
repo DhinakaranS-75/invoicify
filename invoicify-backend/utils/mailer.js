@@ -196,3 +196,30 @@ export async function sendAccountDeleted(email, name, dataDeleted) {
   await t.sendMail({ from: `"Invoicify" <${fromAddress}>`, to: email, subject, text, html });
   console.log(`[Invoicify] Account-deleted email sent to ${email}`);
 }
+
+export async function sendMonthlyReportEmail({ email, name, companyName, monthLabel, csvContent }) {
+  const t = getTransporter();
+  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
+  const subject = `Your ${monthLabel} report — ${companyName}`;
+  const text = `Hi ${name || 'there'}, attached is your Invoicify business report for ${monthLabel}. It covers all invoices and expenses recorded this month.`;
+  const html = shell(`
+        <div style="font-size:15px;font-weight:700;color:#2b2f77;margin:18px 0 6px;">Your ${monthLabel} report is ready 📊</div>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 16px;">Hi ${name || 'there'}, attached is <strong>${companyName}</strong>'s Invoicify report for <strong>${monthLabel}</strong> — invoices, expenses, and a summary of the month, in CSV format (opens in Excel/Google Sheets).</p>
+        <p style="font-size:12.5px;color:#999;line-height:1.5;margin:0;">This is sent automatically at the end of each month. You can turn it off anytime from Settings.</p>`);
+
+  const attachmentName = `Invoicify-Report-${monthLabel.replace(' ', '-')}.csv`;
+
+  if (!t) {
+    console.log(`[Invoicify] Monthly report for ${email} not sent (email not configured).`);
+    return;
+  }
+  await t.sendMail({
+    from: `"Invoicify" <${fromAddress}>`,
+    to: email,
+    subject,
+    text,
+    html,
+    attachments: [{ filename: attachmentName, content: csvContent, contentType: 'text/csv' }]
+  });
+  console.log(`[Invoicify] Monthly report emailed to ${email}`);
+}
