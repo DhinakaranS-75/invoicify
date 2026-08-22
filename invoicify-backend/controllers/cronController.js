@@ -1,8 +1,8 @@
 import User from '../models/User.js';
 import Invoice from '../models/Invoice.js';
 import Expense from '../models/Expense.js';
-import { sendMonthlyReportEmail } from '../utils/mailer.js';
-import { buildMonthlyReportCsv, isLastDayOfMonth, currentMonthRange } from '../utils/csvReport.js';
+import { sendReportEmail } from '../utils/mailer.js';
+import { buildReportCsv, isLastDayOfMonth, currentMonthRange } from '../utils/csvReport.js';
 
 // GET /api/cron/send-monthly-reports?key=...
 // Meant to be hit once a day by an external cron service (e.g. cron-job.org) —
@@ -46,18 +46,18 @@ export async function sendMonthlyReports(req, res) {
           Expense.find({ companyId, date: { $gte: start, $lte: end } }).sort({ date: 1 })
         ]);
 
-        const csvContent = buildMonthlyReportCsv({
-          monthLabel,
+        const csvContent = buildReportCsv({
+          label: monthLabel,
           companyName: user.company?.name || 'Your company',
           invoices,
           expenses
         });
 
-        await sendMonthlyReportEmail({
+        await sendReportEmail({
           email: user.company.email,
           name: user.name,
           companyName: user.company?.name || 'Your company',
-          monthLabel,
+          label: monthLabel,
           csvContent
         });
         sent += 1;

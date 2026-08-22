@@ -1,9 +1,16 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
 import { fmt, statusBadgeClass } from '../utils/format';
 import { getReportBounds, inRange } from '../utils/dates';
+import { api } from '../utils/api';
 import ChartCanvas from '../components/ChartCanvas';
+
+const PERIOD_LABELS = {
+  this_month: 'This Month', last_month: 'Last Month', this_quarter: 'This Quarter',
+  fy_current: 'This Fiscal Year', all: 'All Time'
+};
 
 const STATUS_COLORS = {
   Paid: '#17b3a3', Sent: '#8b5e3c', Unpaid: '#f2703c', Overdue: '#e0335c', Draft: '#9598b8'
@@ -12,10 +19,28 @@ const STATUS_COLORS = {
 export default function Reports() {
   const { invoices, incomes, expenses, currency } = useData();
   const { theme } = useTheme();
+  const { toast } = useToast();
   const [period, setPeriod] = useState('fy_current');
+  const [sendingReport, setSendingReport] = useState(false);
 
   const [start, end] = getReportBounds(period);
   const textColor = theme === 'dark' ? '#c8c9e8' : '#5b5d7a';
+
+  const sendReport = async () => {
+    setSendingReport(true);
+    try {
+      const res = await api.post('/api/reports/email', {
+        start: start.toISOString().slice(0, 10),
+        end: end.toISOString().slice(0, 10),
+        label: PERIOD_LABELS[period] || period
+      });
+      toast('Report sent', res.message || 'Check your company inbox.');
+    } catch (err) {
+      toast('Could not send report', err.message || 'Please try again.', 'error');
+    } finally {
+      setSendingReport(false);
+    }
+  };
 
   const data = useMemo(() => {
     const invInRange = invoices.filter((inv) => inRange(inv.date, start, end));
@@ -85,13 +110,18 @@ export default function Reports() {
     <div className="page active">
       <div className="app-header-row">
         <div><h1 className="hide-mobile">Reports</h1><p className="hide-mobile">A clear snapshot of your business performance.</p></div>
-        <select className="report-period-select" value={period} onChange={(e) => setPeriod(e.target.value)}>
-          <option value="this_month">This Month</option>
-          <option value="last_month">Last Month</option>
-          <option value="this_quarter">This Quarter</option>
-          <option value="fy_current">This Fiscal Year</option>
-          <option value="all">All Time</option>
-        </select>
+        <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <select className="report-period-select" value={period} onChange={(e) => setPeriod(e.target.value)}>
+            <option value="this_month">This Month</option>
+            <option value="last_month">Last Month</option>
+            <option value="this_quarter">This Quarter</option>
+            <option value="fy_current">This Fiscal Year</option>
+            <option value="all">All Time</option>
+          </select>
+          <button className="btn btn-small btn-orange" onClick={sendReport} disabled={sendingReport}>
+            <i className="fa-solid fa-envelope"></i> {sendingReport ? 'Sending…' : 'Email Report'}
+          </button>
+        </div>
       </div>
 
       {/* Segment 1: Business Summary */}

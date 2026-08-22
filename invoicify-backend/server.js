@@ -11,6 +11,7 @@ import customerRoutes from './routes/customerRoutes.js';
 import itemRoutes from './routes/itemRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
 import cronRoutes from './routes/cronRoutes.js';
+import reportsRoutes from './routes/reportsRoutes.js';
 
 // Load environment variables from .env
 dotenv.config();
@@ -52,6 +53,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/cron', cronRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // ---- 404 handler ----
 app.use((req, res) => {

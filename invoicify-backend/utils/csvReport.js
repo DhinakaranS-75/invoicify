@@ -9,9 +9,9 @@ function csvEscape(value) {
   return str;
 }
 
-export function buildMonthlyReportCsv({ monthLabel, companyName, invoices, expenses }) {
+export function buildReportCsv({ label, companyName, invoices, expenses }) {
   const lines = [];
-  lines.push(`Invoicify Monthly Report - ${companyName} - ${monthLabel}`);
+  lines.push(`Invoicify Report - ${companyName} - ${label}`);
   lines.push('');
 
   lines.push('INVOICES');
