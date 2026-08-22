@@ -18,6 +18,8 @@ export default function Items() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [selected, setSelected] = useState(new Set());
+  const [menuFor, setMenuFor] = useState(null);           // mobile card whose ⋮ menu is open
+  const [pendingDelete, setPendingDelete] = useState(null); // item awaiting delete confirm
 
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
@@ -75,6 +77,13 @@ export default function Items() {
     deleteItems([...selected]);
     toast('Items deleted', `${selected.size} item(s) removed.`, 'delete');
     setSelected(new Set());
+  };
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    deleteItems([pendingDelete.id]);
+    toast('Item deleted', `${pendingDelete.name || 'Item'} was removed.`, 'delete');
+    setPendingDelete(null);
   };
 
   // Side panel stats
@@ -160,10 +169,47 @@ export default function Items() {
                     <span className="mic-amount">{fmt(it.sellingPrice || it.price || 0, currency)}</span>
                     <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{it.unit || ''}</span>
                   </div>
+
+                  {can('manageItems') && (
+                    <>
+                      <button
+                        className="mic-kebab"
+                        aria-label="Item actions"
+                        onClick={(ev) => { ev.stopPropagation(); setMenuFor(menuFor === it.id ? null : it.id); }}
+                      >
+                        <i className="fa-solid fa-ellipsis-vertical"></i>
+                      </button>
+
+                      {menuFor === it.id && (
+                        <div className="mic-menu" onClick={(ev) => ev.stopPropagation()}>
+                          <button className="mic-menu-danger" onClick={() => { setMenuFor(null); setPendingDelete(it); }}>
+                            <i className="fa-solid fa-trash-can"></i> Delete
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               ))}
+              {menuFor && <div className="mic-menu-backdrop" onClick={() => setMenuFor(null)}></div>}
             </div>
           </div>
+
+          {pendingDelete && (
+            <div className="confirm-overlay show" onClick={(e) => { if (e.target === e.currentTarget) setPendingDelete(null); }}>
+              <div className="confirm-box">
+                <div className="confirm-icon"><i className="fa-solid fa-triangle-exclamation"></i></div>
+                <h3>Delete this item?</h3>
+                <p>{pendingDelete.name ? `"${pendingDelete.name}"` : 'This item'} will be permanently removed. This can't be undone.</p>
+                <div className="confirm-actions">
+                  <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={confirmDelete}>
+                    <i className="fa-solid fa-trash-can"></i> Delete
+                  </button>
+                  <button className="btn btn-small btn-outline" onClick={() => setPendingDelete(null)}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {can('manageItems') && (
             <button className="fab fab-item" onClick={openNew} title="Add New Item"><i className="fa-solid fa-plus"></i></button>

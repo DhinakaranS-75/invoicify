@@ -12,16 +12,19 @@ import Items from '../pages/Items';
 import Customers from '../pages/Customers';
 import Reports from '../pages/Reports';
 import Expenses from '../pages/Expenses';
+import MoreMenu from '../pages/MoreMenu';
 import Settings from '../pages/Settings';
 
 // Maps our internal page keys to URL paths
 const PAGE_PATHS = {
   home: '/home', item: '/items', invoice: '/invoices',
-  customer: '/customers', reports: '/reports', expense: '/expenses', profile: '/settings'
+  customer: '/customers', reports: '/reports', expense: '/expenses',
+  more: '/more', profile: '/settings'
 };
 const PATH_TITLES = {
   '/home': '', '/items': 'Items', '/invoices': 'Invoices',
-  '/customers': 'Customers', '/reports': 'Reports', '/expenses': 'Expenses', '/settings': 'Settings'
+  '/customers': 'Customers', '/reports': 'Reports', '/expenses': 'Expenses',
+  '/more': 'More', '/settings': 'Settings'
 };
 
 export default function AppShell() {
@@ -113,6 +116,21 @@ export default function AppShell() {
     { key: 'reports', path: '/reports', icon: 'fa-chart-pie', label: 'Reports', show: can('viewReports') },
     { key: 'expense', path: '/expenses', icon: 'fa-wallet', label: 'Expenses', show: true }
   ];
+
+  // Mobile bottom bar only has room for ~4 tabs. Home/Items/Invoices stay
+  // pinned there; everything else (Customers, Reports, Expenses, and any
+  // future addition) lives behind the "More" sheet instead of squeezing
+  // in another icon. The desktop sidebar still shows the full navLinks list.
+  const MOBILE_PRIMARY_KEYS = ['home', 'item', 'invoice'];
+  const mobilePrimaryLinks = navLinks.filter((l) => l.show && MOBILE_PRIMARY_KEYS.includes(l.key));
+  const mobileMoreLinks = navLinks.filter((l) => l.show && !MOBILE_PRIMARY_KEYS.includes(l.key));
+  // Settings isn't part of navLinks (it's not on the desktop sidebar either —
+  // desktop reaches it via the top gear icon). On mobile it now lives at the
+  // end of the More sheet instead of the profile dropdown.
+  if (can('manageSettings')) {
+    mobileMoreLinks.push({ key: 'profile', path: '/settings', icon: 'fa-gear', label: 'Settings' });
+  }
+  const isMoreLinkActive = currentPath === '/more' || mobileMoreLinks.some((l) => l.path === currentPath);
 
   return (
     <div className={'app-screen' + (isMobilePage ? ' mobile-page-titled' : '')}>
@@ -239,6 +257,7 @@ export default function AppShell() {
             <Route path="/customers" element={can('manageCustomers') ? <Customers /> : <Navigate to="/home" replace />} />
             <Route path="/reports" element={can('viewReports') ? <Reports /> : <Navigate to="/home" replace />} />
             <Route path="/expenses" element={<Expenses />} />
+            <Route path="/more" element={<MoreMenu links={mobileMoreLinks} go={go} currentUser={currentUser} company={company} />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>
@@ -247,7 +266,7 @@ export default function AppShell() {
 
       {/* MOBILE BOTTOM TAB BAR — hidden on desktop via CSS (@media max-width:1023px only) */}
       <nav className="mobile-tabbar">
-        {navLinks.filter((l) => l.show).map((l) => (
+        {mobilePrimaryLinks.map((l) => (
           <button
             key={l.key}
             className={'mobile-tab' + (currentPath === l.path ? ' active' : '')}
@@ -257,6 +276,15 @@ export default function AppShell() {
             <span>{l.label}</span>
           </button>
         ))}
+        {mobileMoreLinks.length > 0 && (
+          <button
+            className={'mobile-tab' + (isMoreLinkActive ? ' active' : '')}
+            onClick={() => go('more')}
+          >
+            <i className="fa-solid fa-bars"></i>
+            <span>More</span>
+          </button>
+        )}
       </nav>
     </div>
   );

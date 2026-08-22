@@ -426,7 +426,8 @@
 
     /* Declutter the top bar: gear moves into the profile menu */
     .nav-tools-movable{display:none !important;}
-    .profile-settings-btn{display:flex !important;}
+    /* Settings now lives in the "More" sheet on mobile, not the profile dropdown */
+    .profile-settings-btn{display:none !important;}
 
     /* Stop a long company name from pushing the avatar off-screen */
     .brand-name{max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -458,6 +459,38 @@
     .mobile-tab.active{color:var(--orange);}
     .mobile-tab:active{transform:scale(.92);}
   }
+
+  /* "More" full-page menu */
+  .more-profile-card{
+    display:flex;align-items:center;gap:14px;background:var(--navy);color:#fff;
+    border-radius:var(--radius);padding:18px 20px;margin-bottom:18px;
+  }
+  .more-profile-avatar{
+    width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.15);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;
+    flex:none;overflow:hidden;
+  }
+  .more-profile-avatar img{width:100%;height:100%;object-fit:cover;}
+  .more-profile-name{font-weight:700;font-size:15px;}
+  .more-profile-company{font-size:12.5px;color:rgba(255,255,255,.75);margin-top:2px;}
+  .more-menu-list{display:flex;flex-direction:column;gap:10px;}
+  .more-menu-row{
+    display:flex;align-items:center;gap:14px;width:100%;background:#fff;border:none;
+    padding:14px 16px;border-radius:var(--radius);cursor:pointer;text-align:left;
+    box-shadow:0 4px 18px rgba(27,28,51,.06);
+  }
+  .more-menu-badge{
+    width:42px;height:42px;border-radius:12px;flex:none;color:#fff;font-size:17px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .more-menu-text{display:flex;flex-direction:column;flex:1;min-width:0;}
+  .more-menu-title{font-size:14.5px;font-weight:700;color:var(--navy);}
+  .more-menu-sub{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .more-menu-row:active{background:#f4f4fb;}
+  html[data-theme="dark"] .more-menu-row{background:#1b1d3f;box-shadow:0 4px 18px rgba(0,0,0,.25);}
+  html[data-theme="dark"] .more-menu-title{color:#eceefc;}
+  html[data-theme="dark"] .more-menu-sub{color:#9fa1cf;}
+  html[data-theme="dark"] .more-menu-row:active{background:#23264f;}
 
   @media (max-width:768px){
     /* Lift the FAB above the tab bar so they don't overlap */
