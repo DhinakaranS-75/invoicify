@@ -132,6 +132,15 @@ export default function AppShell() {
   }
   const isMoreLinkActive = currentPath === '/more' || mobileMoreLinks.some((l) => l.path === currentPath);
 
+  // Combined left-to-right order of the bottom bar's actual tab slots
+  // (primary tabs + the More tab), used to slide the notch/bubble to
+  // whichever one is active.
+  const allMobileTabs = [
+    ...mobilePrimaryLinks,
+    ...(mobileMoreLinks.length > 0 ? [{ key: 'more', icon: 'fa-bars', label: 'More' }] : [])
+  ];
+  const activeTabIndex = allMobileTabs.findIndex((t) => (t.key === 'more' ? isMoreLinkActive : currentPath === t.path));
+
   return (
     <div className={'app-screen' + (isMobilePage ? ' mobile-page-titled' : '')}>
       {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)}></div>}
@@ -266,13 +275,35 @@ export default function AppShell() {
 
       {/* MOBILE BOTTOM TAB BAR — hidden on desktop via CSS (@media max-width:1023px only) */}
       <nav className="mobile-tabbar">
-        {mobilePrimaryLinks.map((l) => (
+        {activeTabIndex >= 0 && (
+          <>
+            <div
+              className="mobile-tab-notch"
+              style={{ width: `${100 / allMobileTabs.length}%`, transform: `translateX(${activeTabIndex * 100}%)` }}
+            >
+              <svg className="mobile-tab-notch-svg" viewBox="0 0 90 38" preserveAspectRatio="none">
+                <path d="M0,0 C20,0 24,34 45,34 C66,34 70,0 90,0 Z" />
+              </svg>
+            </div>
+            <div
+              className="mobile-tab-bubble"
+              style={{ width: `${100 / allMobileTabs.length}%`, transform: `translateX(${activeTabIndex * 100}%)` }}
+            >
+              <span className="mobile-tab-bubble-circle">
+                <i className={'fa-solid ' + allMobileTabs[activeTabIndex].icon}></i>
+              </span>
+            </div>
+          </>
+        )}
+        {mobilePrimaryLinks.map((l, i) => (
           <button
             key={l.key}
             className={'mobile-tab' + (currentPath === l.path ? ' active' : '')}
             onClick={() => go(l.key)}
           >
-            <i className={'fa-solid ' + l.icon}></i>
+            <span className="mobile-tab-icon-wrap" style={activeTabIndex === i ? { visibility: 'hidden' } : undefined}>
+              <i className={'fa-solid ' + l.icon}></i>
+            </span>
             <span>{l.label}</span>
           </button>
         ))}
@@ -281,7 +312,12 @@ export default function AppShell() {
             className={'mobile-tab' + (isMoreLinkActive ? ' active' : '')}
             onClick={() => go('more')}
           >
-            <i className="fa-solid fa-bars"></i>
+            <span
+              className="mobile-tab-icon-wrap"
+              style={activeTabIndex === mobilePrimaryLinks.length ? { visibility: 'hidden' } : undefined}
+            >
+              <i className="fa-solid fa-bars"></i>
+            </span>
             <span>More</span>
           </button>
         )}
