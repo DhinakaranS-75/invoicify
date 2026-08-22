@@ -78,6 +78,43 @@ export async function sendResetOtp(email, otp) {
   console.log(`[Invoicify] Reset code emailed to ${email}`);
 }
 
+export async function sendEmailVerifyOtp(email, otp) {
+  const t = getTransporter();
+  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
+
+  const subject = 'Verify your Invoicify email';
+  const text = `Your Invoicify email verification code is ${otp}. It expires in 10 minutes. If you didn't request this, you can safely ignore this email.`;
+  const html = `
+  <div style="background:#f4f4fb;padding:28px 12px;font-family:Arial,Helvetica,sans-serif;">
+    <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(27,28,51,.10);">
+      <div style="height:6px;background:linear-gradient(90deg,#2b2f77 0 55%,#f2703c 55% 78%,#17b3a3 78% 100%);"></div>
+      <div style="padding:32px 30px 28px;">
+        <div style="font-size:24px;font-weight:800;color:#2b2f77;letter-spacing:.5px;margin:0 0 4px;">Invoicify</div>
+        <div style="font-size:15px;font-weight:700;color:#2b2f77;margin:18px 0 6px;">Verify your email</div>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 22px;">Enter the code below in Invoicify to confirm this is your email address. This code expires in <strong>10 minutes</strong>.</p>
+        <div style="background:#f4f4fb;border:1px solid #e6e6f2;border-radius:14px;padding:18px;text-align:center;margin:0 0 22px;">
+          <div style="font-size:36px;font-weight:800;letter-spacing:12px;color:#2b2f77;padding-left:12px;">${otp}</div>
+        </div>
+        <p style="font-size:12.5px;color:#999;line-height:1.5;margin:0;">If you didn't request this, you can safely ignore this email.</p>
+      </div>
+      <div style="background:#fafafe;border-top:1px solid #eee;padding:16px 30px;text-align:center;">
+        <div style="font-size:12px;color:#aaa;">Sent by Invoicify · This is an automated message, please don't reply.</div>
+      </div>
+    </div>
+  </div>`;
+
+  if (!t) {
+    console.log(`\n============================================================`);
+    console.log(`[Invoicify] Email not configured (set SMTP_* or GMAIL_* in .env).`);
+    console.log(`Email verification code for ${email}: ${otp}  (valid 10 min)`);
+    console.log(`============================================================\n`);
+    return;
+  }
+
+  await t.sendMail({ from: `"Invoicify" <${fromAddress}>`, to: email, subject, text, html });
+  console.log(`[Invoicify] Email-verify code emailed to ${email}`);
+}
+
 // Shared branded wrapper so every Invoicify email looks the same.
 function shell(innerHtml) {
   return `

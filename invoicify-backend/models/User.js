@@ -34,6 +34,13 @@ const userSchema = new mongoose.Schema({
   companyId: String,       // shared across a company's team members
   avatar: String,          // base64 data URL
 
+  // Email verification — shows a tick/cross next to the email field in
+  // Settings. Reset to false whenever the email address itself changes
+  // (a new address is unverified until proven again).
+  emailVerified: { type: Boolean, default: false },
+  emailVerifyOtp: String,        // bcrypt-hashed 6-digit code
+  emailVerifyOtpExpiry: Date,
+
   // Preferences
   invoiceTemplate: { type: String, default: 'classic' },
   invoiceNumberConfig: {
@@ -57,7 +64,7 @@ const userSchema = new mongoose.Schema({
   inviteToken: String,        // sha256 hash of the raw token that goes in the email link
   inviteTokenExpiry: Date,
   mustResetPassword: { type: Boolean, default: false },
-  invitedBy: String           // name of the admin who sent the invite
+  invitedBy: String            // name of the admin who sent the invite
 }, { timestamps: true });
 
 // Hash the password automatically before saving (if it changed)
@@ -79,6 +86,8 @@ userSchema.methods.toSafeObject = function () {
   delete obj.password;
   delete obj.resetOtp;
   delete obj.resetOtpExpiry;
+  delete obj.emailVerifyOtp;
+  delete obj.emailVerifyOtpExpiry;
   delete obj.inviteToken;
   delete obj.inviteTokenExpiry;
   return obj;

@@ -5,7 +5,7 @@ import User from '../models/User.js';
 import Customer from '../models/Customer.js';
 import Item from '../models/Item.js';
 import Invoice from '../models/Invoice.js';
-import { sendResetOtp, sendAccountDeleted, sendTeamInvite, sendTempPassword } from '../utils/mailer.js';
+import { sendResetOtp, sendAccountDeleted, sendTeamInvite, sendTempPassword, sendEmailVerifyOtp as sendEmailVerifyOtpMail } from '../utils/mailer.js';
 
 // Creates a signed JWT token that expires in 30 days
 function generateToken(id) {
@@ -309,10 +309,73 @@ export async function updateProfile(req, res) {
     if (firstName !== undefined || lastName !== undefined) {
       user.name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
     }
-    if (email !== undefined) user.email = email;
+    if (email !== undefined) {
+      if (email.toLowerCase() !== user.email) user.emailVerified = false;
+      user.email = email;
+    }
     if (avatar !== undefined) user.avatar = avatar;
     await user.save();
     res.json({ user: user.toSafeObject() });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+// POST /api/auth/send-email-verify-otp
+// Sends a 6-digit code to the logged-in user's OWN current email — used to
+// confirm they actually own it. Requires login, unlike forgotPassword.
+export async function sendEmailVerifyOtp(req, res) {
+  try {
+    const user = await User.findById(req.user._id);
+    if (user.emailVerified) {
+      return res.json({ message: 'Email is already verified.' });
+    }
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const salt = await bcrypt.genSalt(10);
+    user.emailVerifyOtp = await bcrypt.hash(otp, salt);
+    user.emailVerifyOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    try {
+      await sendEmailVerifyOtpMail(user.email, otp);
+    } catch (mailErr) {
+      console.error('Failed to send verification email:', mailErr.message);
+      return res.status(500).json({ message: 'Could not send verification email. Please try again.' });
+    }
+
+    res.json({ message: `Verification code sent to ${user.email}.` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+// POST /api/auth/verify-email-otp  { otp }
+export async function verifyEmailOtp(req, res) {
+  try {
+    const { otp } = req.body;
+    if (!otp) return res.status(400).json({ message: 'Code is required.' });
+
+    const user = await User.findById(req.user._id);
+    if (!user.emailVerifyOtp || !user.emailVerifyOtpExpiry) {
+      return res.status(400).json({ message: 'No verification code pending. Request a new one.' });
+    }
+    if (user.emailVerifyOtpExpiry.getTime() < Date.now()) {
+      user.emailVerifyOtp = undefined;
+      user.emailVerifyOtpExpiry = undefined;
+      await user.save();
+      return res.status(400).json({ message: 'Code has expired. Please request a new one.' });
+    }
+
+    const match = await bcrypt.compare(String(otp), user.emailVerifyOtp);
+    if (!match) return res.status(400).json({ message: 'Incorrect code.' });
+
+    user.emailVerified = true;
+    user.emailVerifyOtp = undefined;
+    user.emailVerifyOtpExpiry = undefined;
+    await user.save();
+
+    res.json({ message: 'Email verified.', user: user.toSafeObject() });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

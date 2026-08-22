@@ -7,6 +7,8 @@ import { usePermissions } from '../hooks/usePermissions';
 import { isValidEmail, ROLE_LABELS } from '../utils/format';
 import { buildInvoiceNumber } from '../utils/invoiceNumber';
 import { INDIA_STATES } from '../utils/locationData';
+import { api } from '../utils/api';
+import OtpInput from '../components/OtpInput';
 
 const TEMPLATES = [
   { id: 'classic', name: 'Classic', desc: 'Colorful bands, bold and friendly.',
@@ -93,7 +95,7 @@ export default function Settings() {
 }
 
 function ProfileTab() {
-  const { currentUser, updateCurrentUser, deleteAccount } = useData();
+  const { currentUser, updateCurrentUser, setCurrentUser, deleteAccount } = useData();
   const { toast } = useToast();
   const [f, setF] = useState({
     firstName: currentUser?.firstName || '', lastName: currentUser?.lastName || '', email: currentUser?.email || ''
@@ -102,6 +104,10 @@ function ProfileTab() {
   const [delData, setDelData] = useState(false);
   const [delConfirm, setDelConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
   const initial = (currentUser?.name || 'U').trim().charAt(0).toUpperCase();
 
@@ -137,6 +143,35 @@ function ProfileTab() {
     }
   };
 
+  const sendVerifyOtp = async () => {
+    setSendingOtp(true);
+    try {
+      const res = await api.post('/api/auth/send-email-verify-otp');
+      toast('Code sent', res.message || `Check ${currentUser?.email}.`);
+      setOtp('');
+      setOtpOpen(true);
+    } catch (err) {
+      toast('Could not send code', err.message || 'Please try again.', 'error');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const confirmVerifyOtp = async () => {
+    if (otp.length !== 6) { toast('Enter the 6-digit code', 'Fill in every box.', 'error'); return; }
+    setVerifyingOtp(true);
+    try {
+      const res = await api.post('/api/auth/verify-email-otp', { otp });
+      setCurrentUser(res.user);
+      toast('Email verified', 'Your email address is now confirmed.');
+      setOtpOpen(false);
+    } catch (err) {
+      toast('Verification failed', err.message || 'Incorrect or expired code.', 'error');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
   return (
     <div className="settings-panel active">
       <div className="panel" style={{ maxWidth: '620px' }}>
@@ -163,7 +198,26 @@ function ProfileTab() {
             <div className="field-sm"><label>First Name</label><input value={f.firstName} onChange={set('firstName')} placeholder="John" /></div>
             <div className="field-sm"><label>Last Name</label><input value={f.lastName} onChange={set('lastName')} placeholder="Doe" /></div>
           </div>
-          <div className="field-sm"><label>Email</label><input type="email" value={f.email} onChange={set('email')} placeholder="johndoe@gmail.com" /></div>
+          <div className="field-sm">
+            <label>Email</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <input type="email" value={f.email} onChange={set('email')} placeholder="johndoe@gmail.com" style={{ flex: 1 }} />
+              {currentUser?.emailVerified ? (
+                <span title="Verified" style={{ color: 'var(--success)', fontSize: '18px', flex: 'none' }}>
+                  <i className="fa-solid fa-circle-check"></i>
+                </span>
+              ) : (
+                <>
+                  <span title="Not verified" style={{ color: 'var(--danger)', fontSize: '18px', flex: 'none' }}>
+                    <i className="fa-solid fa-circle-xmark"></i>
+                  </span>
+                  <button className="btn btn-small btn-outline" style={{ flex: 'none' }} onClick={sendVerifyOtp} disabled={sendingOtp}>
+                    {sendingOtp ? 'Sending…' : 'Verify'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
           <button className="btn btn-small btn-orange" onClick={save}>Save Changes</button>
         </div>
 
@@ -172,6 +226,29 @@ function ProfileTab() {
           <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 12px' }}>Permanently delete your account. This cannot be undone.</p>
           <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={() => { setDelData(false); setDelConfirm(''); setDelOpen(true); }}>
             <i className="fa-solid fa-trash-can"></i> Delete Account
+          </button>
+        </div>
+      </div>
+
+      {/* Email verification code entry */}
+      <div className={'confirm-overlay' + (otpOpen ? ' show' : '')} onClick={(e) => { if (e.target === e.currentTarget && !verifyingOtp) setOtpOpen(false); }}>
+        <div className="confirm-box" style={{ textAlign: 'left', maxWidth: '400px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <div className="confirm-icon" style={{ margin: 0, width: '44px', height: '44px', fontSize: '18px', background: 'rgba(23,179,163,.12)', color: 'var(--teal)' }}><i className="fa-solid fa-envelope-circle-check"></i></div>
+            <h3 style={{ margin: 0 }}>Verify your email</h3>
+          </div>
+          <p style={{ margin: '6px 0 16px', color: 'var(--muted)', fontSize: '13.5px' }}>Enter the 6-digit code sent to <strong>{currentUser?.email}</strong>.</p>
+          <div style={{ marginBottom: '16px' }}>
+            <OtpInput value={otp} onChange={setOtp} />
+          </div>
+          <div className="confirm-actions" style={{ flexDirection: 'row' }}>
+            <button className="btn btn-small btn-orange" disabled={otp.length !== 6 || verifyingOtp} onClick={confirmVerifyOtp}>
+              {verifyingOtp ? 'Verifying…' : 'Verify Email'}
+            </button>
+            <button className="btn btn-small btn-outline" disabled={verifyingOtp} onClick={() => setOtpOpen(false)}>Cancel</button>
+          </div>
+          <button className="pd-link-btn" style={{ marginTop: '12px', fontSize: '12.5px', background: 'none', border: 'none', color: 'var(--navy)', cursor: 'pointer' }} onClick={sendVerifyOtp} disabled={sendingOtp}>
+            {sendingOtp ? 'Resending…' : "Didn't get it? Resend code"}
           </button>
         </div>
       </div>
