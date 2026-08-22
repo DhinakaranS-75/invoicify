@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeContext';
@@ -6,14 +6,19 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { ROLE_LABELS } from '../utils/format';
 import { requestNav } from '../utils/navGuard';
+// Home stays a normal (non-lazy) import — it's the very first screen almost
+// everyone sees right after login, so there's no benefit to splitting it out;
+// doing so would just add a loading flicker on the most common path.
 import Home from '../pages/Home';
-import Invoices from '../pages/Invoices';
-import Items from '../pages/Items';
-import Customers from '../pages/Customers';
-import Reports from '../pages/Reports';
-import Expenses from '../pages/Expenses';
-import MoreMenu from '../pages/MoreMenu';
-import Settings from '../pages/Settings';
+// Everything else only loads its code the moment the person actually visits
+// that page, instead of all of it being bundled into the initial download.
+const Invoices = lazy(() => import('../pages/Invoices'));
+const Items = lazy(() => import('../pages/Items'));
+const Customers = lazy(() => import('../pages/Customers'));
+const Reports = lazy(() => import('../pages/Reports'));
+const Expenses = lazy(() => import('../pages/Expenses'));
+const MoreMenu = lazy(() => import('../pages/MoreMenu'));
+const Settings = lazy(() => import('../pages/Settings'));
 
 // Maps our internal page keys to URL paths
 const PAGE_PATHS = {
@@ -164,12 +169,8 @@ export default function AppShell() {
         </div>
 
         <div className="app-nav-right">
-          <button className="icon-btn nav-theme-btn" onClick={toggleTheme} title="Toggle theme">
-            <i className="fa-solid fa-moon"></i>
-          </button>
-
-          {/* Mobile notification bell */}
-          <div className="nav-mobile-only" style={{ position: 'relative' }} ref={notifRef}>
+          {/* Notification bell — now shown on both mobile and desktop */}
+          <div className="nav-notif-wrap" style={{ position: 'relative' }} ref={notifRef}>
             <button id="nav-notif-btn" className="icon-btn" onClick={() => setNotifOpen((o) => !o)} title="Notifications">
               <i className="fa-solid fa-bell"></i>
               {hasUrgent && <span className="notif-dot"></span>}
@@ -194,6 +195,10 @@ export default function AppShell() {
               </div>
             )}
           </div>
+
+          <button className="icon-btn nav-theme-btn" onClick={toggleTheme} title="Toggle theme">
+            <i className="fa-solid fa-moon"></i>
+          </button>
 
           {/* Desktop tools */}
           <div className="nav-tools-movable">
@@ -259,17 +264,19 @@ export default function AppShell() {
         </aside>
 
         <main className="app-main">
-          <Routes>
-            <Route path="/home" element={<Home go={go} />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/items" element={can('manageItems') ? <Items /> : <Navigate to="/home" replace />} />
-            <Route path="/customers" element={can('manageCustomers') ? <Customers /> : <Navigate to="/home" replace />} />
-            <Route path="/reports" element={can('viewReports') ? <Reports /> : <Navigate to="/home" replace />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/more" element={<MoreMenu links={mobileMoreLinks} go={go} currentUser={currentUser} company={company} />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<Navigate to="/home" replace />} />
-          </Routes>
+          <Suspense fallback={<div className="page-loading"><i className="fa-solid fa-spinner fa-spin"></i></div>}>
+            <Routes>
+              <Route path="/home" element={<Home go={go} />} />
+              <Route path="/invoices" element={<Invoices />} />
+              <Route path="/items" element={can('manageItems') ? <Items /> : <Navigate to="/home" replace />} />
+              <Route path="/customers" element={can('manageCustomers') ? <Customers /> : <Navigate to="/home" replace />} />
+              <Route path="/reports" element={can('viewReports') ? <Reports /> : <Navigate to="/home" replace />} />
+              <Route path="/expenses" element={<Expenses />} />
+              <Route path="/more" element={<MoreMenu links={mobileMoreLinks} go={go} currentUser={currentUser} company={company} />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/home" replace />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
 

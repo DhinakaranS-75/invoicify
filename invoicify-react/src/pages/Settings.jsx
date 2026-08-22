@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
+import { useTheme } from '../context/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { isValidEmail, ROLE_LABELS } from '../utils/format';
 import { buildInvoiceNumber } from '../utils/invoiceNumber';
@@ -313,6 +314,7 @@ function CompanyTab() {
 
 function PreferencesTab() {
   const { invoiceTemplate, setInvoiceTemplate, invoiceNumberConfig, setInvoiceNumberConfig } = useData();
+  const { mode, setMode } = useTheme();
   const { toast } = useToast();
   const [cfg, setCfg] = useState(invoiceNumberConfig);
   const setC = (k) => (e) => setCfg((p) => ({ ...p, [k]: e.target.value }));
@@ -329,6 +331,25 @@ function PreferencesTab() {
   return (
     <div className="settings-panel active">
       <div className="panel" style={{ maxWidth: '720px' }}>
+        <h3>Appearance</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Choose how Invoicify looks on this device.</p>
+        <div className="theme-segment">
+          <button className={'theme-seg-btn' + (mode === 'light' ? ' active' : '')} onClick={() => setMode('light')}>
+            <i className="fa-solid fa-sun"></i> Light
+          </button>
+          <button className={'theme-seg-btn' + (mode === 'dark' ? ' active' : '')} onClick={() => setMode('dark')}>
+            <i className="fa-solid fa-moon"></i> Dark
+          </button>
+          <button className={'theme-seg-btn' + (mode === 'system' ? ' active' : '')} onClick={() => setMode('system')}>
+            <i className="fa-solid fa-display"></i> System
+          </button>
+        </div>
+        <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '10px 0 0' }}>
+          "System" matches your device's own light/dark setting automatically.
+        </p>
+      </div>
+
+      <div className="panel section-gap" style={{ maxWidth: '720px' }}>
         <h3>Invoice Numbering</h3>
         <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Customize how your invoice numbers are generated.</p>
         <div className="grid2">
