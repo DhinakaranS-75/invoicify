@@ -591,6 +591,10 @@
   html[data-theme="dark"] .cf-header select{background-color:#23264f;border-color:#34376b;color:#eceefc;}
   html[data-theme="dark"] .cf-summary{color:#9fa1cf;}
   html[data-theme="dark"] .cf-summary strong{color:#eceefc;}
+  @media (max-width:768px){
+    .chart-panel{padding:16px 8px;}
+    .chart-panel .cf-header,.chart-panel .cf-summary{padding:0 8px;}
+  }
   .stat-card{background:#fff;border-radius:var(--radius);padding:18px 20px;box-shadow:0 4px 18px rgba(27,28,51,.06);min-width:0;}
   .stat-label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:8px;font-weight:700;}
   .stat-value{font-size:clamp(16px, 4.2vw, 26px);font-weight:700;color:var(--navy);overflow-wrap:break-word;}

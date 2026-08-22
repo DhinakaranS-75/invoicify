@@ -159,7 +159,7 @@ export default function Home() {
       </div>
 
       {/* Cash Flow */}
-      <div className="panel">
+      <div className="panel chart-panel">
         <div className="cf-header">
           <h3 style={{ margin: 0 }}>Cash Flow</h3>
           <select value={cashflowPeriod} onChange={(e) => setCashflowPeriod(e.target.value)}>{periodOptions}</select>
@@ -173,7 +173,7 @@ export default function Home() {
       </div>
 
       {/* Payment Method */}
-      <div className="panel section-gap">
+      <div className="panel chart-panel section-gap">
         <div className="cf-header">
           <h3 style={{ margin: 0 }}>Income &amp; Expense by Payment Method</h3>
           <select value={methodPeriod} onChange={(e) => setMethodPeriod(e.target.value)}>{periodOptions}</select>
