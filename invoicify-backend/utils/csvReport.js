@@ -11,7 +11,7 @@ function csvEscape(value) {
 
 export function buildReportCsv({ label, companyName, invoices, expenses }) {
   const lines = [];
-  lines.push(`Invoicify Report - ${companyName} - ${label}`);
+  lines.push(`InvoicifysPro Report - ${companyName} - ${label}`);
   lines.push('');
 
   lines.push('INVOICES');

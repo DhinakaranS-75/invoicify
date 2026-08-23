@@ -58,8 +58,8 @@ export default function Landing() {
       <header className="lp-nav">
         <div className="lp-wrap lp-nav-inner">
           <div className="lp-brand">
-            <img src="/pwa-192x192.png" alt="Invoicify" className="lp-brand-logo" />
-            <span className="lp-brand-name">Invoicify</span>
+            <img src="/pwa-192x192.png" alt="InvoicifysPro" className="lp-brand-logo" />
+            <span className="lp-brand-name">InvoicifysPro</span>
           </div>
           <nav className="lp-nav-links">
             <a href="#features" className="lp-nav-link">Features</a>
@@ -170,8 +170,8 @@ export default function Landing() {
       <footer className="lp-footer">
         <div className="lp-wrap lp-footer-inner">
           <div className="lp-brand">
-            <img src="/pwa-192x192.png" alt="Invoicify" className="lp-brand-logo" />
-            <span className="lp-brand-name">Invoicify</span>
+            <img src="/pwa-192x192.png" alt="InvoicifysPro" className="lp-brand-logo" />
+            <span className="lp-brand-name">InvoicifysPro</span>
           </div>
           <div className="lp-footer-links">
             <button className="lp-link-btn" onClick={goLogin}>Log in</button>
@@ -181,7 +181,7 @@ export default function Landing() {
             <a href="/privacy" className="lp-nav-link">Privacy</a>
           </div>
           {/* Change this to your name / brand */}
-          <div className="lp-footer-credit">Built by Dhinakaran · © {new Date().getFullYear()} Invoicify</div>
+          <div className="lp-footer-credit">Built by Dhinakaran · © {new Date().getFullYear()} InvoicifysPro</div>
         </div>
       </footer>
     </div>

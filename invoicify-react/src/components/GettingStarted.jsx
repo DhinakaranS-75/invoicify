@@ -33,7 +33,7 @@ export default function GettingStarted({ onSkip }) {
     <div className="page active">
       <div className="gs-wrap">
         <div className="gs-header">
-          <h1>Welcome to Invoicify, {firstName} 👋</h1>
+          <h1>Welcome to InvoicifysPro, {firstName} 👋</h1>
           <p>Let's get you set up. Complete these steps to start invoicing like a pro.</p>
         </div>
 

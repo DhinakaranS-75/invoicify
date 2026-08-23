@@ -161,7 +161,7 @@ export function DataProvider({ children }) {
         await loadAllData();
         setLastSynced(new Date());
       } catch (err) {
-        console.error('[Invoicify] background sync failed:', err.message);
+        console.error('[InvoicifysPro] background sync failed:', err.message);
       } finally {
         syncingRef.current = false;
       }

@@ -26,7 +26,7 @@ export default function MoreMenu({ links, go, currentUser, company }) {
         </div>
         <div className="more-profile-text">
           <div className="more-profile-name">{currentUser?.name || 'Your account'}</div>
-          <div className="more-profile-company">{company?.name || 'Invoicify'}</div>
+          <div className="more-profile-company">{company?.name || 'InvoicifysPro'}</div>
         </div>
       </div>
 

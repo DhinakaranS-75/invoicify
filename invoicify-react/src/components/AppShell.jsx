@@ -108,7 +108,7 @@ export default function AppShell() {
   };
 
   const company = currentUser?.company;
-  const companyName = company?.name || 'Invoicify';
+  const companyName = company?.name || 'InvoicifysPro';
   const initial = (currentUser?.name || 'U').trim().charAt(0).toUpperCase();
   const currentPath = location.pathname;
   const isMobilePage = currentPath !== '/home' && currentPath !== '/';

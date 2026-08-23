@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 const DISMISS_KEY = 'invoicify_install_dismissed';
 
-// Small banner offering to install Invoicify to the home screen.
+// Small banner offering to install InvoicifysPro to the home screen.
 //
 // Chrome/Edge fire `beforeinstallprompt` when the app qualifies (HTTPS,
 // manifest, service worker). iOS Safari never fires it, so there we show
@@ -79,7 +79,7 @@ export default function InstallPrompt() {
     <div className="install-banner">
       <div className="ib-icon"><i className="fa-solid fa-mobile-screen-button"></i></div>
       <div className="ib-text">
-        <strong>Install Invoicify</strong>
+        <strong>Install InvoicifysPro</strong>
         {showIosHint
           ? <span>Tap Share <i className="fa-solid fa-arrow-up-from-bracket"></i> then "Add to Home Screen".</span>
           : <span>Add it to your home screen — opens fullscreen, just like an app.</span>}

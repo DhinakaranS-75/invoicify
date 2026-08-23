@@ -7,7 +7,7 @@ export default function BootSplash() {
     <div className="boot-splash">
       <div className="boot-splash-inner">
         <div className="boot-logo"><i className="fa-solid fa-file-invoice-dollar"></i></div>
-        <div className="boot-wordmark">Invoicify</div>
+        <div className="boot-wordmark">InvoicifysPro</div>
         <div className="boot-bar"><span></span></div>
       </div>
     </div>

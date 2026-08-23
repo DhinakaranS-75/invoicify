@@ -73,7 +73,7 @@ export default function InviteAccept() {
             <h1 className="auth-title">You're invited</h1>
             <p className="auth-sub">
               {invite.invitedBy ? `${invite.invitedBy} invited you` : 'You have been invited'}
-              {invite.company ? ` to join ${invite.company}` : ''} on Invoicify.
+              {invite.company ? ` to join ${invite.company}` : ''} on InvoicifysPro.
             </p>
 
             <div className="invite-summary">

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 // NOTE FOR DHINAKARAN: same as Terms.jsx — fill in the placeholders and get
 // a real review before this is treated as your final, live policy.
 const LAST_UPDATED = 'August 2026';
-const BUSINESS_NAME = 'InvoicifyPro';
+const BUSINESS_NAME = 'InvoicifysProPro';
 const SUPPORT_EMAIL = '[your-support@email.com]';
 
 export default function Privacy() {
@@ -11,8 +11,8 @@ export default function Privacy() {
     <div className="legal-page">
       <div className="legal-header">
         <Link to="/">
-          <img src="/pwa-192x192.png" alt="Invoicify" />
-          Invoicify
+          <img src="/pwa-192x192.png" alt="InvoicifysPro" />
+          InvoicifysPro
         </Link>
       </div>
 
@@ -21,7 +21,7 @@ export default function Privacy() {
         <p className="legal-updated">Last updated: {LAST_UPDATED}</p>
 
         <p>
-          This Privacy Policy explains what information Invoicify (the "Service"),
+          This Privacy Policy explains what information InvoicifysPro (the "Service"),
           provided by {BUSINESS_NAME}, collects, how we use it, and the choices you have.
         </p>
 
@@ -57,7 +57,7 @@ export default function Privacy() {
 
         <h2>5. Your Customers' Data</h2>
         <p>
-          When you add your own customers' details to Invoicify to generate invoices, you
+          When you add your own customers' details to InvoicifysPro to generate invoices, you
           act as the data controller for that information, and you're responsible for
           having a lawful basis to store and use it. We process it only on your behalf, to
           provide the Service to you.
@@ -97,7 +97,7 @@ export default function Privacy() {
 
         <h2>9. Children's Privacy</h2>
         <p>
-          Invoicify is a business tool and is not directed at, or intended for use by,
+          InvoicifysPro is a business tool and is not directed at, or intended for use by,
           children. We don't knowingly collect information from anyone under 18.
         </p>
 

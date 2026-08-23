@@ -16,8 +16,8 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
 
       manifest: {
-        name: 'Invoicify — Invoice Generator',
-        short_name: 'Invoicify',
+        name: 'InvoicifysPro — Invoice Generator',
+        short_name: 'InvoicifysPro',
         description: 'Create, manage and share GST invoices for your business.',
         id: '/',
         start_url: '/',

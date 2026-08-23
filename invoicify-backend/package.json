@@ -1,7 +1,7 @@
 {
   "name": "invoicify-backend",
   "version": "1.0.0",
-  "description": "Backend API for Invoicify invoice generator",
+  "description": "Backend API for InvoicifysPro invoice generator",
   "type": "module",
   "main": "server.js",
   "scripts": {

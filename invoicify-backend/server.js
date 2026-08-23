@@ -43,7 +43,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // ---- Health check route ----
 app.get('/', (req, res) => {
-  res.json({ message: 'Invoicify API is running 🚀' });
+  res.json({ message: 'InvoicifysPro API is running 🚀' });
 });
 
 // ---- API routes ----

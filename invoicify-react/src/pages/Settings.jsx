@@ -409,7 +409,7 @@ function PreferencesTab() {
     <div className="settings-panel active">
       <div className="panel" style={{ maxWidth: '720px' }}>
         <h3>Appearance</h3>
-        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Choose how Invoicify looks on this device.</p>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Choose how InvoicifysPro looks on this device.</p>
         <div className="theme-segment">
           <button className={'theme-seg-btn' + (mode === 'light' ? ' active' : '')} onClick={() => setMode('light')}>
             <i className="fa-solid fa-sun"></i> Light
@@ -524,7 +524,7 @@ function TeamTab() {
       toast('Member removed', `${m.name}'s access was revoked.`, 'delete');
       setPendingDelete(null);
     } catch (err) {
-      console.error('[Invoicify] remove team member failed:', err);
+      console.error('[InvoicifysPro] remove team member failed:', err);
       toast('Could not remove', err.message || 'Please try again.', 'error');
       setPendingDelete(null);
     } finally {
@@ -555,7 +555,7 @@ function TeamTab() {
       <div className="panel" style={{ maxWidth: '620px' }}>
         <h3>Invite Team Member</h3>
         <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>
-          They'll get an email to accept the invitation. You don't set a password — Invoicify emails them a
+          They'll get an email to accept the invitation. You don't set a password — InvoicifysPro emails them a
           temporary one once they accept.
         </p>
         <div className="grid2">
