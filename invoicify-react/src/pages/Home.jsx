@@ -10,7 +10,7 @@ import GettingStarted from '../components/GettingStarted';
 export default function Home() {
   const {
     currentUser, invoices, customers, catalogItems,
-    incomes, expenses, addIncome, deleteIncome, currency, dataLoading
+    incomes, expenses, addIncome, deleteIncome, currency
   } = useData();
   const { theme } = useTheme();
   const { toast } = useToast();
@@ -152,10 +152,10 @@ export default function Home() {
 
       {/* Stats */}
       <div className="stat-grid">
-        <div className="stat-card"><div className="stat-label">Total Invoices</div><div className="stat-value">{dataLoading ? '…' : invoices.length}</div></div>
-        <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{dataLoading ? '…' : fmt(totalRevenue, currency)}</div></div>
-        <div className="stat-card"><div className="stat-label">Customers</div><div className="stat-value">{dataLoading ? '…' : customers.length}</div></div>
-        <div className="stat-card"><div className="stat-label">Catalog Items</div><div className="stat-value">{dataLoading ? '…' : catalogItems.length}</div></div>
+        <div className="stat-card"><div className="stat-label">Total Invoices</div><div className="stat-value">{invoices.length}</div></div>
+        <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{fmt(totalRevenue, currency)}</div></div>
+        <div className="stat-card"><div className="stat-label">Customers</div><div className="stat-value">{customers.length}</div></div>
+        <div className="stat-card"><div className="stat-label">Catalog Items</div><div className="stat-value">{catalogItems.length}</div></div>
       </div>
 
       {/* Cash Flow */}
@@ -169,9 +169,7 @@ export default function Home() {
           <div><span className="cf-dot" style={{ background: '#f2703c' }}></span>Outgoing <strong>{fmt(totalOutgoing, currency)}</strong></div>
           <div>Net <strong>{fmt(totalIncome - totalOutgoing, currency)}</strong></div>
         </div>
-        {dataLoading
-          ? <p className="empty-line" style={{ padding: '60px 0', textAlign: 'center' }}><i className="fa-solid fa-spinner fa-spin"></i> Loading your data…</p>
-          : <ChartCanvas config={cashflowConfig} height={260} />}
+        <ChartCanvas config={cashflowConfig} height={260} />
       </div>
 
       {/* Payment Method */}
@@ -180,9 +178,7 @@ export default function Home() {
           <h3 style={{ margin: 0 }}>Income &amp; Expense by Payment Method</h3>
           <select value={methodPeriod} onChange={(e) => setMethodPeriod(e.target.value)}>{periodOptions}</select>
         </div>
-        {dataLoading
-          ? <p className="empty-line" style={{ padding: '50px 0', textAlign: 'center' }}><i className="fa-solid fa-spinner fa-spin"></i> Loading your data…</p>
-          : <ChartCanvas config={methodConfig} height={240} />}
+        <ChartCanvas config={methodConfig} height={240} />
       </div>
 
       {/* Add Income */}

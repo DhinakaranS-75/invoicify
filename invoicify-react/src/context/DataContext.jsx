@@ -47,12 +47,6 @@ export function DataProvider({ children }) {
 
   const [loading, setLoading] = useState(true);   // initial "am I logged in?" check
   const [booting, setBooting] = useState(true);
-  // True while invoices/customers/items/expenses are being fetched — covers
-  // BOTH the boot-restore path and a fresh interactive login, since in both
-  // cases `currentUser` can flip true (and Home can start rendering) before
-  // this data actually arrives. Screens use this to show a loading state
-  // instead of a misleading "0" / empty dashboard.
-  const [dataLoading, setDataLoading] = useState(true);
 
   const invoiceNumberConfig = currentUser?.invoiceNumberConfig || DEFAULT_INVOICE_NUMBER_CONFIG;
   const invoiceTemplate = currentUser?.invoiceTemplate || 'classic';
@@ -66,7 +60,6 @@ export function DataProvider({ children }) {
 
   // ---- Load all company data after login ----
   const loadAllData = useCallback(async () => {
-    setDataLoading(true);
     try {
       const [inv, cust, items, exp, teamRes] = await Promise.all([
         api.get('/api/invoices'),
@@ -82,8 +75,6 @@ export function DataProvider({ children }) {
       setTeamMembers(withIds(teamRes?.team));
     } catch (err) {
       console.error('Failed to load data:', err.message);
-    } finally {
-      setDataLoading(false);
     }
   }, []);
 
@@ -377,7 +368,7 @@ export function DataProvider({ children }) {
 
   const value = {
     currentUser, setCurrentUser, updateCurrentUser,
-    booting, dataLoading,
+    booting,
     invoices, addInvoice, updateInvoice, deleteInvoice, duplicateInvoice,
     customers, addCustomer, updateCustomer, deleteCustomers,
     catalogItems, addItem, updateItem, deleteItems,
