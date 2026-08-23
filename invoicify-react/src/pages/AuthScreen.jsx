@@ -7,11 +7,6 @@ import { api } from '../utils/api';
 import OtpInput from '../components/OtpInput';
 import PasswordStrength from '../components/PasswordStrength';
 
-// Logging out (or a session expiring) leaves the URL alone, so someone can
-// land on the login screen while the address bar still reads /invoices.
-// After a successful login we send them back there rather than to /home.
-const APP_PATHS = ['/home', '/items', '/invoices', '/customers', '/reports', '/settings'];
-
 // The installed app (PWA/TWA) always lands here with a plain "/" — there's
 // no /login or /signup in the URL to go on. So the very first time this
 // device ever opens the auth screen we default to Signup (a fresh install
@@ -64,7 +59,6 @@ function LoginForm({ goTo, setPending }) {
   const { login } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -90,9 +84,7 @@ function LoginForm({ goTo, setPending }) {
         return;
       }
 
-      const wanted = location.pathname;
-      const dest = APP_PATHS.some((p) => wanted.startsWith(p)) ? wanted : '/home';
-      navigate(dest, { replace: true });
+      navigate('/home', { replace: true });
       toast('Welcome back', `Signed in as ${res.user.name}.`);
     } catch (err) {
       // For security the server never says whether the email or the password
