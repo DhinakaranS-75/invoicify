@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 // lawyer review it once the business is registered — this is a solid
 // starting template, not a substitute for real legal advice.
 const LAST_UPDATED = 'August 2026';
-const BUSINESS_NAME = 'InvoicifyPro';
+const BUSINESS_NAME = 'InvoicifysProPro';
 const SUPPORT_EMAIL = '[your-support@email.com]';
 const JURISDICTION = 'India';
 
@@ -14,8 +14,8 @@ export default function Terms() {
     <div className="legal-page">
       <div className="legal-header">
         <Link to="/">
-          <img src="/pwa-192x192.png" alt="Invoicify" />
-          Invoicify
+          <img src="/pwa-192x192.png" alt="InvoicifysPro" />
+          InvoicifysPro
         </Link>
       </div>
 
@@ -24,15 +24,15 @@ export default function Terms() {
         <p className="legal-updated">Last updated: {LAST_UPDATED}</p>
 
         <p>
-          These Terms of Service ("Terms") govern your access to and use of Invoicify
+          These Terms of Service ("Terms") govern your access to and use of InvoicifysPro
           (the "Service"), provided by {BUSINESS_NAME} ("we", "us", "our"). By creating
           an account or using the Service, you agree to these Terms. If you don't agree,
           please don't use the Service.
         </p>
 
-        <h2>1. What Invoicify Is</h2>
+        <h2>1. What InvoicifysPro Is</h2>
         <p>
-          Invoicify is a billing and invoicing tool that lets you create invoices, manage
+          InvoicifysPro is a billing and invoicing tool that lets you create invoices, manage
           customers and items, record expenses, and track payments for your own business.
           It is provided as a tool for your convenience — you remain solely responsible
           for the accuracy of the invoices, tax details (including GST), and financial
@@ -59,7 +59,7 @@ export default function Terms() {
         <h2>4. Your Data & Content</h2>
         <p>
           You own the invoices, customer records, expenses, and other business data you
-          enter into Invoicify ("Your Content"). We don't claim ownership over it. You're
+          enter into InvoicifysPro ("Your Content"). We don't claim ownership over it. You're
           responsible for making sure Your Content is accurate and that you have the right
           to store and use it (for example, customer details you've collected lawfully).
         </p>
@@ -71,7 +71,7 @@ export default function Terms() {
 
         <h2>5. Fees</h2>
         <p>
-          Invoicify is currently offered free of charge. If we introduce paid plans in the
+          InvoicifysPro is currently offered free of charge. If we introduce paid plans in the
           future, we'll clearly communicate pricing and give notice before any changes
           affect your existing account.
         </p>

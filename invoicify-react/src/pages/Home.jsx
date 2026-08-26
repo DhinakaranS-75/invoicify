@@ -257,3 +257,5 @@ function IncomePanel({ open, setOpen, incomes, addIncome, deleteIncome, currency
     </div>
   );
 }
+
+

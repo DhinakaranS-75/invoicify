@@ -1,143 +1,292 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
+import { usePermissions } from '../hooks/usePermissions';
+import { fmt, generateId } from '../utils/format';
 
-// NOTE FOR DHINAKARAN: fill in the bracketed placeholders (business name,
-// contact email, address, jurisdiction) before this goes live, and have a
-// lawyer review it once the business is registered — this is a solid
-// starting template, not a substitute for real legal advice.
-const LAST_UPDATED = 'August 2026';
-const BUSINESS_NAME = 'InvoicifysProPro';
-const SUPPORT_EMAIL = '[your-support@email.com]';
-const JURISDICTION = 'India';
+const EMPTY_FORM = {
+  name: '', type: 'Goods', sku: '', category: 'General',
+  description: '', price: '', selling: '', tax: '', unit: 'Box'
+};
 
-export default function Terms() {
+export default function Items() {
+  const { catalogItems, addItem, updateItem, deleteItems, currency } = useData();
+  const { toast } = useToast();
+  const { can } = usePermissions();
+
+  const [view, setView] = useState('dashboard'); // dashboard | form
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [selected, setSelected] = useState(new Set());
+  const [menuFor, setMenuFor] = useState(null);           // mobile card whose ⋮ menu is open
+  const [pendingDelete, setPendingDelete] = useState(null); // item awaiting delete confirm
+
+  const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  const totalValue = catalogItems.reduce((s, i) => s + (i.sellingPrice ?? i.price ?? 0), 0);
+
+  const openNew = () => {
+    setForm(EMPTY_FORM);
+    setEditingId(null);
+    setView('form');
+  };
+
+  const openEdit = (item) => {
+    setForm({
+      name: item.name || '', type: item.type || 'Goods', sku: item.sku || '',
+      category: item.category || 'General', description: item.description || '',
+      price: item.price ?? '', selling: item.sellingPrice ?? '', tax: item.tax ?? '', unit: item.unit || 'Box'
+    });
+    setEditingId(item.id);
+    setView('form');
+  };
+
+  const submit = () => {
+    if (form.name.trim().length < 1) { toast('Name required', 'Please enter a product name.', 'error'); return; }
+    const payload = {
+      name: form.name.trim(), type: form.type, sku: form.sku.trim(), category: form.category,
+      description: form.description.trim(),
+      price: parseFloat(form.price) || 0,
+      sellingPrice: parseFloat(form.selling) || 0,
+      tax: parseFloat(form.tax) || 0,
+      unit: form.unit
+    };
+    if (editingId) {
+      updateItem(editingId, payload);
+      toast('Item updated', `${payload.name} was saved.`);
+    } else {
+      addItem({ id: generateId('ITM'), ...payload });
+      toast('Item added', `${payload.name} added to catalog.`);
+    }
+    setView('dashboard');
+  };
+
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (checked) => {
+    setSelected(checked ? new Set(catalogItems.map((i) => i.id)) : new Set());
+  };
+
+  const bulkDelete = () => {
+    deleteItems([...selected]);
+    toast('Items deleted', `${selected.size} item(s) removed.`, 'delete');
+    setSelected(new Set());
+  };
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    deleteItems([pendingDelete.id]);
+    toast('Item deleted', `${pendingDelete.name || 'Item'} was removed.`, 'delete');
+    setPendingDelete(null);
+  };
+
+  // Side panel stats
+  const count = catalogItems.length;
+  const avg = count ? totalValue / count : 0;
+  const categories = new Set(catalogItems.map((i) => i.category).filter(Boolean)).size;
+
   return (
-    <div className="legal-page">
-      <div className="legal-header">
-        <Link to="/">
-          <img src="/pwa-192x192.png" alt="InvoicifysPro" />
-          InvoicifysPro
-        </Link>
+    <div className="page active">
+      <div className="app-header-row">
+        <div><h1 className="hide-mobile">Items</h1><p className="hide-mobile">Manage your product/service catalog for faster invoicing.</p></div>
+        {view === 'dashboard' && (
+          <div className="header-actions">
+            {selected.size === 1 && can('manageItems') && (
+              <button className="btn btn-small btn-teal" onClick={() => { const it = catalogItems.find((x) => x.id === [...selected][0]); if (it) openEdit(it); }}>
+                <i className="fa-solid fa-pen"></i> Edit
+              </button>
+            )}
+            {selected.size > 0 && can('manageItems') && (
+              <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={bulkDelete}>
+                <i className="fa-solid fa-trash-can"></i> Delete ({selected.size})
+              </button>
+            )}
+            {can('manageItems') && (
+              <button className="btn btn-small btn-orange hide-mobile" onClick={openNew}><i className="fa-solid fa-plus"></i> Add New Item</button>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="legal-body">
-        <h1>Terms of Service</h1>
-        <p className="legal-updated">Last updated: {LAST_UPDATED}</p>
+      {view === 'dashboard' ? (
+        <>
+          <div className="stat-grid hide-mobile" style={{ gridTemplateColumns: 'repeat(2,1fr)', maxWidth: '480px' }}>
+            <div className="stat-card"><div className="stat-label">Total Items</div><div className="stat-value">{count}</div></div>
+            <div className="stat-card"><div className="stat-label">Catalog Value</div><div className="stat-value">{fmt(totalValue, currency)}</div></div>
+          </div>
 
-        <p>
-          These Terms of Service ("Terms") govern your access to and use of InvoicifysPro
-          (the "Service"), provided by {BUSINESS_NAME} ("we", "us", "our"). By creating
-          an account or using the Service, you agree to these Terms. If you don't agree,
-          please don't use the Service.
-        </p>
+          <div className="panel">
+            <h3>Item Catalog</h3>
+            <div className="hide-mobile" style={{ overflowX: 'auto' }}>
+              <table className="invoice-dash-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '34px' }}><input type="checkbox" checked={count > 0 && selected.size === count} onChange={(e) => toggleSelectAll(e.target.checked)} /></th>
+                    <th>Item Name</th><th>SKU</th><th>Category</th><th>Description</th>
+                    <th>Purchase Rate</th><th>Selling Price</th><th>Tax %</th><th>Unit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {count === 0 ? (
+                    <tr><td colSpan="9"><p className="empty-line" style={{ fontSize: '13px', margin: 0 }}>No items yet — add your first product or service.</p></td></tr>
+                  ) : catalogItems.map((it) => (
+                    <tr key={it.id} className="inv-row" onClick={() => openEdit(it)} style={{ cursor: 'pointer' }}>
+                      <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected.has(it.id)} onChange={() => toggleSelect(it.id)} /></td>
+                      <td>{it.name}</td>
+                      <td>{it.sku || '—'}</td>
+                      <td>{it.category || '—'}</td>
+                      <td>{it.description || '—'}</td>
+                      <td className="amt-col">{fmt(it.price || 0, currency)}</td>
+                      <td className="amt-col">{fmt(it.sellingPrice || 0, currency)}</td>
+                      <td>{it.tax ? it.tax + '%' : '—'}</td>
+                      <td>{it.unit || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        <h2>1. What InvoicifysPro Is</h2>
-        <p>
-          InvoicifysPro is a billing and invoicing tool that lets you create invoices, manage
-          customers and items, record expenses, and track payments for your own business.
-          It is provided as a tool for your convenience — you remain solely responsible
-          for the accuracy of the invoices, tax details (including GST), and financial
-          records you create using it.
-        </p>
+            {/* Mobile cards */}
+            <div className="mobile-invoice-cards show-mobile">
+              {count === 0 ? (
+                <p className="empty-line" style={{ fontSize: '13px' }}>No items yet — tap + to add one.</p>
+              ) : catalogItems.map((it) => (
+                <div className="mobile-inv-card" key={it.id} onClick={() => openEdit(it)}>
+                  <div className="mic-left">
+                    <div className="mic-customer">{it.name}</div>
+                    <div className="mic-meta">
+                      <span>{it.sku ? 'SKU: ' + it.sku : 'No SKU'}</span><br />
+                      <span>{it.category || 'Uncategorized'}</span>
+                    </div>
+                  </div>
+                  <div className="mic-right">
+                    <span className="mic-amount">{fmt(it.sellingPrice || it.price || 0, currency)}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{it.unit || ''}</span>
+                  </div>
 
-        <h2>2. Your Account</h2>
-        <ul>
-          <li>You must provide accurate information when registering and keep your password secure.</li>
-          <li>You're responsible for all activity that happens under your account, including actions by team members you invite.</li>
-          <li>You must be legally able to enter into a contract to use the Service.</li>
-          <li>Notify us immediately if you suspect unauthorised access to your account.</li>
-        </ul>
+                  {can('manageItems') && (
+                    <>
+                      <button
+                        className="mic-kebab"
+                        aria-label="Item actions"
+                        onClick={(ev) => { ev.stopPropagation(); setMenuFor(menuFor === it.id ? null : it.id); }}
+                      >
+                        <i className="fa-solid fa-ellipsis-vertical"></i>
+                      </button>
 
-        <h2>3. Acceptable Use</h2>
-        <p>You agree not to:</p>
-        <ul>
-          <li>Use the Service for any unlawful purpose, including tax evasion or issuing fraudulent invoices.</li>
-          <li>Attempt to gain unauthorised access to other accounts or to our systems.</li>
-          <li>Upload malicious code, or interfere with the Service's normal operation.</li>
-          <li>Resell or sublicense the Service without our written permission.</li>
-        </ul>
+                      {menuFor === it.id && (
+                        <div className="mic-menu" onClick={(ev) => ev.stopPropagation()}>
+                          <button className="mic-menu-danger" onClick={() => { setMenuFor(null); setPendingDelete(it); }}>
+                            <i className="fa-solid fa-trash-can"></i> Delete
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+              {menuFor && <div className="mic-menu-backdrop" onClick={() => setMenuFor(null)}></div>}
+            </div>
+          </div>
 
-        <h2>4. Your Data & Content</h2>
-        <p>
-          You own the invoices, customer records, expenses, and other business data you
-          enter into InvoicifysPro ("Your Content"). We don't claim ownership over it. You're
-          responsible for making sure Your Content is accurate and that you have the right
-          to store and use it (for example, customer details you've collected lawfully).
-        </p>
-        <p>
-          You grant us a limited licence to store, process, and display Your Content
-          solely to operate and improve the Service for you (for example, generating a
-          PDF from your invoice data).
-        </p>
+          {pendingDelete && (
+            <div className="confirm-overlay show" onClick={(e) => { if (e.target === e.currentTarget) setPendingDelete(null); }}>
+              <div className="confirm-box">
+                <div className="confirm-icon"><i className="fa-solid fa-triangle-exclamation"></i></div>
+                <h3>Delete this item?</h3>
+                <p>{pendingDelete.name ? `"${pendingDelete.name}"` : 'This item'} will be permanently removed. This can't be undone.</p>
+                <div className="confirm-actions">
+                  <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={confirmDelete}>
+                    <i className="fa-solid fa-trash-can"></i> Delete
+                  </button>
+                  <button className="btn btn-small btn-outline" onClick={() => setPendingDelete(null)}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
 
-        <h2>5. Fees</h2>
-        <p>
-          InvoicifysPro is currently offered free of charge. If we introduce paid plans in the
-          future, we'll clearly communicate pricing and give notice before any changes
-          affect your existing account.
-        </p>
+          {can('manageItems') && (
+            <button className="fab fab-item" onClick={openNew} title="Add New Item"><i className="fa-solid fa-plus"></i></button>
+          )}
+        </>
+      ) : (
+        <div className="subview active">
+          <div className="back-link" onClick={() => setView('dashboard')}><i className="fa-solid fa-arrow-left"></i> Back to Items</div>
+          <div className="item-form-layout">
+            <div className="panel">
+              <h3>{editingId ? 'Edit Item' : 'New Item'}</h3>
+              <div className="grid2">
+                <div className="field-sm"><label>Product Name</label><input value={form.name} onChange={set('name')} placeholder="Product Name" /></div>
+                <div className="field-sm"><label>Product Type</label>
+                  <select value={form.type} onChange={set('type')}><option value="Goods">Goods</option><option value="Service">Service</option></select>
+                </div>
+                <div className="field-sm"><label>SKU / Item Code</label><input value={form.sku} onChange={set('sku')} placeholder="e.g. PRD-001" /></div>
+                <div className="field-sm"><label>Category</label>
+                  <select value={form.category} onChange={set('category')}>
+                    <option>General</option><option>Electronics</option><option>Office Supplies</option><option>Services</option>
+                    <option>Software</option><option>Hardware</option><option>Furniture</option><option>Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className="field-sm"><label>Item Description</label><textarea value={form.description} onChange={set('description')} placeholder="Brief description of this item or service"></textarea></div>
+              <div className="grid2">
+                <div className="field-sm"><label>Purchase Rate</label><input type="number" min="0" step="0.01" value={form.price} onChange={set('price')} placeholder="0.00" /></div>
+                <div className="field-sm"><label>Selling Price</label><input type="number" min="0" step="0.01" value={form.selling} onChange={set('selling')} placeholder="0.00" /></div>
+                <div className="field-sm"><label>Tax Rate (%)</label><input type="number" min="0" max="100" step="0.01" value={form.tax} onChange={set('tax')} placeholder="e.g. 18" /></div>
+                <div className="field-sm"><label>Usage Unit</label>
+                  <select value={form.unit} onChange={set('unit')}><option value="Box">Box</option><option value="Pcs">Pcs</option><option value="Number">Number</option></select>
+                </div>
+              </div>
+              <div className="actions-row">
+                <button className="btn btn-small btn-orange" onClick={submit}><i className={'fa-solid ' + (editingId ? 'fa-floppy-disk' : 'fa-plus')}></i> {editingId ? 'Save Item' : 'Add Item'}</button>
+                <button className="btn btn-small btn-outline" onClick={() => setView('dashboard')}><i className="fa-solid fa-xmark"></i> Cancel</button>
+              </div>
+            </div>
 
-        <h2>6. Third-Party Services</h2>
-        <p>
-          The Service relies on third-party infrastructure providers (for hosting,
-          database storage, and, where applicable, payment processing) to operate. We
-          choose reputable providers, but we aren't responsible for outages or issues
-          caused by those third parties that are outside our control.
-        </p>
+            <div className="item-form-side">
+              <div className="panel">
+                <h3>Catalog Overview</h3>
+                <div className="mini-stat-row">
+                  <div className="mini-stat"><div className="mini-stat-label">Total Items</div><div className="mini-stat-value">{count}</div></div>
+                  <div className="mini-stat"><div className="mini-stat-label">Catalog Value</div><div className="mini-stat-value">{fmt(totalValue, currency)}</div></div>
+                </div>
+                <div className="mini-stat-row">
+                  <div className="mini-stat"><div className="mini-stat-label">Avg. Price</div><div className="mini-stat-value">{fmt(avg, currency)}</div></div>
+                  <div className="mini-stat"><div className="mini-stat-label">Categories</div><div className="mini-stat-value">{categories}</div></div>
+                </div>
+                <div className="tips-box">
+                  <div className="tips-title"><i className="fa-solid fa-lightbulb"></i> Quick Tips</div>
+                  <ul>
+                    <li>Use <strong>SKU codes</strong> like PRD-001 to find items fast.</li>
+                    <li><strong>Selling Price</strong> fills the invoice rate automatically.</li>
+                    <li>Set <strong>Tax Rate</strong> per item to apply GST on invoices.</li>
+                  </ul>
+                </div>
+              </div>
 
-        <h2>7. Disclaimer of Warranties</h2>
-        <p>
-          The Service is provided "as is" and "as available," without warranties of any
-          kind, express or implied. We don't guarantee the Service will be uninterrupted,
-          error-free, or that it complies with every tax regulation applicable to your
-          business — you should verify GST and other statutory requirements independently
-          or with a qualified professional.
-        </p>
-
-        <h2>8. Limitation of Liability</h2>
-        <p>
-          To the maximum extent permitted by law, {BUSINESS_NAME} will not be liable for
-          any indirect, incidental, or consequential damages arising from your use of the
-          Service, including loss of business data, revenue, or profits, even if we've
-          been advised of the possibility of such damages.
-        </p>
-
-        <h2>9. Termination</h2>
-        <p>
-          You may stop using the Service and delete your account at any time. We may
-          suspend or terminate accounts that violate these Terms, or that we reasonably
-          believe are being used for fraudulent or illegal activity.
-        </p>
-        <p>
-          <strong>Automatic deletion for inactivity:</strong> To protect your data and
-          keep our systems secure, any account that has not been logged into for{' '}
-          <strong>30 consecutive days</strong> will be considered inactive, and all data
-          associated with it — including your email, password, mobile number, company
-          details, GSTIN, invoices, items, and expenses — will be{' '}
-          <strong>permanently and irreversibly deleted</strong>. If you try to log in
-          after this period, you'll be told that no account exists, and you'll need to
-          sign up again as a new user. We recommend logging in at least once every 30
-          days if you'd like to keep using your account and data.
-        </p>
-
-        <h2>10. Changes to These Terms</h2>
-        <p>
-          We may update these Terms from time to time. We'll update the "Last updated"
-          date above when we do. Continued use of the Service after changes means you
-          accept the updated Terms.
-        </p>
-
-        <h2>11. Governing Law</h2>
-        <p>
-          These Terms are governed by the laws of {JURISDICTION}, without regard to its
-          conflict of law principles.
-        </p>
-
-        <h2>12. Contact</h2>
-        <p>
-          Questions about these Terms? Reach us at{' '}
-          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
-        </p>
-      </div>
+              <div className="panel section-gap">
+                <h3>Recently Added</h3>
+                <div className="saved-list">
+                  {count === 0
+                    ? <p className="empty-line" style={{ fontSize: '13px' }}>No items yet.</p>
+                    : catalogItems.slice().reverse().slice(0, 5).map((it) => (
+                      <div className="saved-item" key={it.id}>
+                        <div><strong>{it.name}</strong>{it.category || '—'}</div>
+                        <div className="amt-col">{fmt(it.sellingPrice || it.price || 0, currency)}</div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
