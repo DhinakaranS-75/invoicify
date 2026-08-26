@@ -6,7 +6,6 @@ import { fmt, statusBadgeClass } from '../utils/format';
 import InvoiceDocument, { invoiceToDocData } from './InvoiceDocument';
 import ScaleToFit from './ScaleToFit';
 import PrintPortal from './PrintPortal';
-import PaymentConflictDialog from './PaymentConflictDialog';
 import { exportElementToPDF } from '../utils/pdf';
 
 function paidTotal(inv) {
@@ -34,23 +33,26 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
   }
 
   const status = inv.status || 'Draft';
-  const [statusConflict, setStatusConflict] = useState(null); // pending new status
+  const [removePayConfirm, setRemovePayConfirm] = useState(false);
   const paid = paidTotal(inv);
   const balance = Math.max(0, inv.total - paid);
   const pct = inv.total > 0 ? Math.min(100, (paid / inv.total) * 100) : 0;
   const docData = invoiceToDocData(inv, company, companySignature);
 
-  // Moving an invoice that has payments on it to a non-Paid status is
-  // ambiguous, so ask instead of guessing (see PaymentConflictDialog).
+  // Status and payments are independent now — "Mark as Sent" only ever
+  // changes the status label, it never touches recorded payments. To
+  // remove a payment, use the dedicated "Remove Payment" button (or the
+  // per-entry delete in Payment History) instead.
   const markAs = (newStatus) => {
-    if (paid > 0 && newStatus !== 'Paid') { setStatusConflict(newStatus); return; }
-    applyStatus(newStatus, inv.payments || []);
+    updateInvoice(inv.id, { status: newStatus });
+    toast('Status updated', `${inv.number} marked as ${newStatus}.`);
   };
 
-  const applyStatus = (newStatus, payments) => {
-    updateInvoice(inv.id, { status: newStatus, payments });
-    setStatusConflict(null);
-    toast('Status updated', `${inv.number} marked as ${newStatus}.`);
+  const removeAllPayments = () => {
+    const newStatus = inv.status === 'Paid' ? 'Sent' : inv.status;
+    updateInvoice(inv.id, { status: newStatus, payments: [] });
+    setRemovePayConfirm(false);
+    toast('Payment removed', 'Income updated.', 'delete');
   };
 
   const recordPayment = (payment) => {
@@ -88,6 +90,7 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
 
       <div className="invoice-detail-actions">
         {can('recordPayment') && <button className="btn btn-small btn-teal detail-action-btn" onClick={() => setPayDialog(true)} title="Record Payment"><i className="fa-solid fa-indian-rupee-sign"></i><span className="btn-label"> Record Payment</span></button>}
+        {can('recordPayment') && paid > 0 && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => setRemovePayConfirm(true)} title="Undo Payment"><i className="fa-solid fa-rupee-sign"></i><span className="btn-label"> Undo Payment</span></button>}
         {can('recordPayment') && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => markAs('Sent')} title="Mark as Sent"><i className="fa-solid fa-paper-plane"></i><span className="btn-label"> Mark as Sent</span></button>}
         {can('editInvoice') && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => onEdit(inv.id)} title="Edit"><i className="fa-solid fa-pen"></i><span className="btn-label"> Edit</span></button>}
         <button className="btn btn-small btn-outline detail-action-btn" onClick={downloadPDF} title="Download PDF"><i className="fa-solid fa-download"></i><span className="btn-label"> Download PDF</span></button>
@@ -164,17 +167,21 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
         <InvoiceDocument data={docData} template={invoiceTemplate} currency={currency} />
       </PrintPortal>
 
-      {/* Status change vs recorded payment */}
-      {statusConflict && (
-        <PaymentConflictDialog
-          invoiceNumber={inv.number}
-          paidAmount={paid}
-          newStatus={statusConflict}
-          currency={currency}
-          onRemove={() => { applyStatus(statusConflict, []); toast('Payment removed', 'Income updated.', 'delete'); }}
-          onKeep={() => applyStatus(statusConflict, inv.payments || [])}
-          onCancel={() => setStatusConflict(null)}
-        />
+      {/* Remove payment confirmation */}
+      {removePayConfirm && (
+        <div className="confirm-overlay show" onClick={(e) => { if (e.target === e.currentTarget) setRemovePayConfirm(false); }}>
+          <div className="confirm-box">
+            <div className="confirm-icon"><i className="fa-solid fa-triangle-exclamation"></i></div>
+            <h3>Remove this payment?</h3>
+            <p>{fmt(paid, currency)} recorded on {inv.number} will be removed. Income reports will update to reflect this. This can't be undone.</p>
+            <div className="confirm-actions">
+              <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={removeAllPayments}>
+                <i className="fa-solid fa-trash-can"></i> Remove Payment
+              </button>
+              <button className="btn btn-small btn-outline" onClick={() => setRemovePayConfirm(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Payment dialog */}

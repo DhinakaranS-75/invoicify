@@ -94,17 +94,22 @@ export function scorePassword(pw) {
 
 export default function PasswordStrength({ password }) {
   if (!password) return null;
-  const { score, label, percent, hints } = scorePassword(password);
+  const { score, label } = scorePassword(password);
+
+  // Compact segmented meter — a handful of small dashes light up left to
+  // right, with the label sitting right next to them (not a full-width bar
+  // with text underneath).
+  const segments = 4;
+  const filled = Math.max(1, score); // even "very weak" (score 0) lights one dash
 
   return (
-    <div className="pw-strength">
-      <div className="pw-bar">
-        <div className={'pw-bar-fill pw-lvl-' + score} style={{ width: percent + '%' }}></div>
+    <div className="pw-strength-compact">
+      <div className="pw-segments">
+        {Array.from({ length: segments }).map((_, i) => (
+          <span key={i} className={'pw-seg' + (i < filled ? ' filled pw-lvl-' + score : '')}></span>
+        ))}
       </div>
-      <div className="pw-meta">
-        <span className={'pw-label pw-lvl-' + score}>{label}</span>
-        {hints.length > 0 && <span className="pw-hint">{hints[0]}</span>}
-      </div>
+      <span className={'pw-label-compact pw-lvl-' + score}>{label}</span>
     </div>
   );
 }

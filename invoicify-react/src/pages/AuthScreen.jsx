@@ -128,9 +128,20 @@ function RegisterForm({ goTo }) {
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmTouched, setConfirmTouched] = useState(false);
   const [shake, setShake] = useState(false);
   const doShake = () => { setShake(true); setTimeout(() => setShake(false), 500); };
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  // Live confirm-password feedback — a green tick shows the moment it
+  // matches (positive feedback is never annoying). The red "doesn't match"
+  // message only shows once the field has been left at least once, or the
+  // typed length already reaches the password's length — either way means
+  // they're done typing, not mid-keystroke, so it won't flash red early.
+  const confirmMatches = f.confirm.length > 0 && f.confirm === f.password;
+  const showConfirmMismatch = f.confirm.length > 0 && !confirmMatches
+    && (confirmTouched || f.confirm.length >= f.password.length);
+  const confirmError = errors.confirm || (showConfirmMismatch ? "Passwords don't match yet." : undefined);
 
   const submit = async () => {
     const errs = {};
@@ -180,8 +191,20 @@ function RegisterForm({ goTo }) {
         </button>
       </Field>
       <PasswordStrength password={f.password} />
-      <Field label="Confirm Password" error={errors.confirm} shake={shake}>
-        <input className={errors.confirm ? 'invalid' : ''} type={showConfirm ? 'text' : 'password'} value={f.confirm} onChange={set('confirm')} placeholder="Re-enter password" />
+      <Field label="Confirm Password" error={confirmError} shake={shake}>
+        <input
+          className={(errors.confirm || showConfirmMismatch) ? 'invalid' : ''}
+          type={showConfirm ? 'text' : 'password'}
+          value={f.confirm}
+          onChange={set('confirm')}
+          onBlur={() => setConfirmTouched(true)}
+          placeholder="Re-enter password"
+        />
+        {confirmMatches && (
+          <span className="confirm-match-tick" title="Passwords match">
+            <i className="fa-solid fa-circle-check"></i>
+          </span>
+        )}
         <button type="button" className="toggle-eye" onClick={() => setShowConfirm((s) => !s)}>
           <i className={'fa-solid ' + (showConfirm ? 'fa-eye-slash' : 'fa-eye')}></i>
         </button>
@@ -255,7 +278,15 @@ function ResetForm({ goTo, resetEmail }) {
   const [error, setError] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmTouched, setConfirmTouched] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Same live feedback as the signup form — green tick the moment it
+  // matches; red "doesn't match" only once they've left the field or
+  // typed enough to reach the password's length.
+  const confirmMatches = confirm.length > 0 && confirm === pw;
+  const showConfirmMismatch = confirm.length > 0 && !confirmMatches
+    && (confirmTouched || confirm.length >= pw.length);
 
   const submit = async () => {
     if (!/^\d{6}$/.test(otp.trim())) { setError('Enter the 6-digit code from your email.'); return; }
@@ -288,8 +319,20 @@ function ResetForm({ goTo, resetEmail }) {
         </button>
       </Field>
       <PasswordStrength password={pw} />
-      <Field label="Confirm Password" error={error}>
-        <input type={showConfirm ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Re-enter password" />
+      <Field label="Confirm Password" error={error || (showConfirmMismatch ? "Passwords don't match yet." : '')}>
+        <input
+          className={showConfirmMismatch ? 'invalid' : ''}
+          type={showConfirm ? 'text' : 'password'}
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          onBlur={() => setConfirmTouched(true)}
+          placeholder="Re-enter password"
+        />
+        {confirmMatches && (
+          <span className="confirm-match-tick" title="Passwords match">
+            <i className="fa-solid fa-circle-check"></i>
+          </span>
+        )}
         <button type="button" className="toggle-eye" onClick={() => setShowConfirm((s) => !s)}>
           <i className={'fa-solid ' + (showConfirm ? 'fa-eye-slash' : 'fa-eye')}></i>
         </button>

@@ -157,6 +157,10 @@
     position:absolute;right:14px;top:50%;transform:translateY(-50%);
     background:none;border:none;color:#c9caf0;font-size:12px;font-weight:600;padding:4px;
   }
+  .field .confirm-match-tick{
+    position:absolute;right:44px;top:50%;transform:translateY(-50%);
+    color:#17b3a3;font-size:14px;pointer-events:none;
+  }
   .error-text{color:#ffb3c4;font-size:11.5px;margin:6px 2px 0;display:none;}
   .field-sm .error-text{color:var(--danger);}
   .error-text.show{display:block;}
@@ -923,7 +927,7 @@
   @media (max-width:768px){
     .invoice-detail-actions{gap:8px;}
     .detail-action-btn{flex:1 1 calc(50% - 4px);justify-content:center;min-width:0;}
-    .detail-preview-btn{flex:1 1 100%;justify-content:center;}
+    .detail-preview-btn{flex:1 1 calc(50% - 4px);justify-content:center;min-width:0;}
   }
   .mobile-preview-overlay{
     display:none;position:fixed;inset:0;background:rgba(10,10,30,.75);z-index:2100;
@@ -1065,6 +1069,8 @@
   .template-card.selected .tpl-check{opacity:1;}
   .template-desc{font-size:11.5px;color:var(--muted);margin-top:3px;}
   html[data-theme="dark"] .template-card{background:#1b1d3f;}
+  html[data-theme="dark"] .template-card.selected{border-color:#7dd8cd;box-shadow:0 4px 16px rgba(0,0,0,.35);}
+  html[data-theme="dark"] .tpl-check{color:#7dd8cd;}
   html[data-theme="dark"] .template-name{color:#eceefc;}
   html[data-theme="dark"] .template-thumb{background:#fff;}
   .settings-layout{display:grid;grid-template-columns:220px 1fr;gap:24px;align-items:start;}
@@ -1343,25 +1349,22 @@
   html[data-theme="dark"] .invite-row{border-bottom-color:#34376b;}
   html[data-theme="dark"] .invite-row strong{color:#eceefc;}
 
-  /* ---- Password strength meter ---- */
-  .pw-strength{margin:-6px 0 14px;}
-  .pw-bar{height:5px;border-radius:4px;background:var(--line);overflow:hidden;}
-  .pw-bar-fill{height:100%;border-radius:4px;transition:width .25s ease,background .25s ease;}
-  .pw-meta{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:6px;}
-  .pw-label{font-size:11.5px;font-weight:700;flex:none;}
-  .pw-hint{font-size:11px;color:var(--muted);text-align:right;line-height:1.4;}
-  .pw-bar-fill.pw-lvl-0{background:var(--danger);}
-  .pw-bar-fill.pw-lvl-1{background:#e8743b;}
-  .pw-bar-fill.pw-lvl-2{background:#e0a92b;}
-  .pw-bar-fill.pw-lvl-3{background:#3fa89a;}
-  .pw-bar-fill.pw-lvl-4{background:#17b3a3;}
-  .pw-label.pw-lvl-0{color:var(--danger);}
-  .pw-label.pw-lvl-1{color:#c4571f;}
-  .pw-label.pw-lvl-2{color:#a67c14;}
-  .pw-label.pw-lvl-3{color:#0f8478;}
-  .pw-label.pw-lvl-4{color:#0f8478;}
-  html[data-theme="dark"] .pw-bar{background:#34376b;}
-  html[data-theme="dark"] .pw-hint{color:#9fa1cf;}
+  /* ---- Password strength meter (compact, segmented) ---- */
+  .pw-strength-compact{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-6px 0 14px;}
+  .pw-segments{display:flex;gap:3px;}
+  .pw-seg{width:18px;height:4px;border-radius:3px;background:var(--line);}
+  .pw-seg.filled.pw-lvl-0{background:var(--danger);}
+  .pw-seg.filled.pw-lvl-1{background:#e8743b;}
+  .pw-seg.filled.pw-lvl-2{background:#e0a92b;}
+  .pw-seg.filled.pw-lvl-3{background:#3fa89a;}
+  .pw-seg.filled.pw-lvl-4{background:#17b3a3;}
+  .pw-label-compact{font-size:11.5px;font-weight:700;flex:none;}
+  .pw-label-compact.pw-lvl-0{color:var(--danger);}
+  .pw-label-compact.pw-lvl-1{color:#c4571f;}
+  .pw-label-compact.pw-lvl-2{color:#a67c14;}
+  .pw-label-compact.pw-lvl-3{color:#0f8478;}
+  .pw-label-compact.pw-lvl-4{color:#0f8478;}
+  html[data-theme="dark"] .pw-seg{background:#34376b;}
 
   /* ---- PWA install banner ---- */
   .install-banner{
