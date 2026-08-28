@@ -6,7 +6,7 @@ import { fmt, statusBadgeClass } from '../utils/format';
 import InvoiceDocument, { invoiceToDocData } from './InvoiceDocument';
 import ScaleToFit from './ScaleToFit';
 import PrintPortal from './PrintPortal';
-import { exportElementToPDF } from '../utils/pdf';
+import { exportElementToPDF, shareElementAsPDF } from '../utils/pdf';
 
 function paidTotal(inv) {
   return (inv.payments || []).reduce((s, p) => s + p.amount, 0);
@@ -82,6 +82,23 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
     if (el) { exportElementToPDF(el, inv.number || 'invoice'); toast('Download started', 'Your invoice PDF is being generated.'); }
   };
 
+  const shareInvoice = async () => {
+    const el = previewRef.current?.querySelector('.inv-doc');
+    if (!el) return;
+    try {
+      const result = await shareElementAsPDF(
+        el,
+        inv.number || 'invoice',
+        `Invoice ${inv.number} — ${fmt(inv.total, currency)}`
+      );
+      if (result.method === 'native') toast('Shared', 'Invoice PDF sent to the app you picked.');
+      else if (result.method === 'download') toast('Downloaded', 'Sharing isn\'t supported here — attach the downloaded PDF manually.');
+      // 'cancelled' — the person just backed out of the share sheet, no toast needed.
+    } catch (err) {
+      toast('Could not share invoice', err.message || 'Please try again.', 'error');
+    }
+  };
+
   return (
     <div className="page active">
       <div className="back-link" onClick={onBack}><i className="fa-solid fa-arrow-left"></i> Back to Invoices</div>
@@ -94,6 +111,7 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
         {can('recordPayment') && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => markAs('Sent')} title="Mark as Sent"><i className="fa-solid fa-paper-plane"></i><span className="btn-label"> Mark as Sent</span></button>}
         {can('editInvoice') && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => onEdit(inv.id)} title="Edit"><i className="fa-solid fa-pen"></i><span className="btn-label"> Edit</span></button>}
         <button className="btn btn-small btn-outline detail-action-btn" onClick={downloadPDF} title="Download PDF"><i className="fa-solid fa-download"></i><span className="btn-label"> Download PDF</span></button>
+        <button className="btn btn-small btn-outline detail-action-btn" onClick={shareInvoice} title="Share Invoice"><i className="fa-solid fa-share-nodes"></i><span className="btn-label"> Share Invoice</span></button>
         <button className="btn btn-small btn-outline detail-action-btn" onClick={() => window.print()} title="Print"><i className="fa-solid fa-print"></i><span className="btn-label"> Print</span></button>
         <button className="btn btn-small btn-navy detail-preview-btn show-mobile" onClick={() => setMobilePreview(true)}><i className="fa-solid fa-eye"></i> Preview Invoice</button>
       </div>
