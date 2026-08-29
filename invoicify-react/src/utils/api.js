@@ -11,8 +11,7 @@ const API_PORT = 5000;
 function resolveBaseUrl() {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   const host = window.location.hostname || 'localhost';
-  // return `http://${host}:${API_PORT}`;
-  return "https://invoicifyspro.onrender.com";
+  return `http://${host}:${API_PORT}`;
 }
 
 const BASE_URL = resolveBaseUrl();

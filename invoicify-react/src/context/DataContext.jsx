@@ -6,7 +6,7 @@ import { useToast } from './ToastContext';
 const DataContext = createContext(null);
 
 // Auto-logout after this much inactivity, with a warning shortly before.
-const IDLE_LIMIT_MS = 3 * 60 * 1000; // 3 minutes
+const IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutes
 const IDLE_WARN_MS = 60 * 1000;       // warn for the final 60 seconds
 
 // How often to quietly re-fetch shared company data so changes made by
@@ -200,7 +200,7 @@ export function DataProvider({ children }) {
       const left = IDLE_LIMIT_MS - (Date.now() - lastActivityRef.current);
       if (left <= 0) {
         logout();
-        toast('Signed out', 'You were inactive for 3 minutes.', 'error');
+        toast('Signed out', 'You were inactive for 10 minutes.', 'error');
       } else if (left <= IDLE_WARN_MS) {
         warningShownRef.current = true;
         setIdleCountdown(Math.ceil(left / 1000));
