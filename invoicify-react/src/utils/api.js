@@ -12,6 +12,7 @@ function resolveBaseUrl() {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   const host = window.location.hostname || 'localhost';
   return `http://${host}:${API_PORT}`;
+  
 }
 
 const BASE_URL = resolveBaseUrl();
@@ -42,6 +43,12 @@ export function setUnauthorizedHandler(fn) {
 // expired session — these must never trigger an auto-logout.
 const PUBLIC_AUTH_PATHS = ['/api/auth/login', '/api/auth/register'];
 
+// Requests time out after this long. Render free-tier cold starts can take
+// 30-50s on their own, so this needs headroom above that — but it must not
+// be "forever", or a stuck backend just spins the UI's loading state
+// indefinitely with no way for the user to know something's wrong.
+const REQUEST_TIMEOUT_MS = 45000;
+
 // Core request function. Automatically attaches JSON headers + auth token.
 async function request(path, { method = 'GET', body } = {}) {
   const headers = { 'Content-Type': 'application/json' };
@@ -49,16 +56,25 @@ async function request(path, { method = 'GET', body } = {}) {
 
   const hadToken = !!authToken;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   let res;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal
     });
   } catch (networkErr) {
+    if (networkErr.name === 'AbortError') {
+      throw new Error('The server took too long to respond. Please try again.');
+    }
     // Server not reachable
     throw new Error('Cannot reach the server. Is the backend running?');
+  } finally {
+    clearTimeout(timer);
   }
 
   let data = null;

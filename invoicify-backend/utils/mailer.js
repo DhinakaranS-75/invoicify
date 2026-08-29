@@ -28,7 +28,14 @@ function getTransporter() {
       host,
       port,
       secure: port === 465, // 465 = SSL, 587 = STARTTLS
-      auth: { user, pass }
+      auth: { user, pass },
+      // Without these, a blocked/slow SMTP connection (common on Render's
+      // free tier, since some regions restrict outbound SMTP ports) can
+      // hang the connection far longer than nodemailer's own defaults —
+      // which in turn hangs the whole HTTP request that's awaiting it.
+      connectionTimeout: 10000, // give up trying to connect after 10s
+      greetingTimeout: 10000,   // give up waiting for SMTP greeting after 10s
+      socketTimeout: 15000      // give up on a stalled send after 15s
     });
   }
   return transporter;

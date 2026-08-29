@@ -120,11 +120,13 @@ export async function forgotPassword(req, res) {
       user.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
       await user.save(); // password isn't modified, so it won't be re-hashed
 
-      try {
-        await sendResetOtp(user.email, otp);
-      } catch (mailErr) {
+      // Fire-and-forget: do NOT await this. The HTTP response should never
+      // be held hostage by a slow/unreachable SMTP server — that's what was
+      // causing the request to sit "pending" forever in the browser.
+      // Mail delivery now happens in the background after we've responded.
+      sendResetOtp(user.email, otp).catch((mailErr) => {
         console.error('Failed to send reset email:', mailErr.message);
-      }
+      });
     }
 
     // Always respond the same way, whether or not the email exists,
@@ -337,12 +339,11 @@ export async function sendEmailVerifyOtp(req, res) {
     user.emailVerifyOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    try {
-      await sendEmailVerifyOtpMail(user.email, otp);
-    } catch (mailErr) {
+    // Same fix as forgotPassword — don't let a slow SMTP server hang the
+    // response. Send the code in the background instead of awaiting it.
+    sendEmailVerifyOtpMail(user.email, otp).catch((mailErr) => {
       console.error('Failed to send verification email:', mailErr.message);
-      return res.status(500).json({ message: 'Could not send verification email. Please try again.' });
-    }
+    });
 
     res.json({ message: `Verification code sent to ${user.email}.` });
   } catch (err) {
