@@ -1,15 +1,22 @@
 import nodemailer from 'nodemailer';
 
-// Provider-agnostic SMTP — works with Gmail, Yahoo, or any SMTP host.
-// Configure in .env (see .env.example for Gmail / Yahoo examples):
-//   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, [SMTP_FROM]
-// Back-compat: if only GMAIL_USER / GMAIL_APP_PASSWORD are set, Gmail is used.
-// Note: personal Outlook/Hotmail no longer supports app-password SMTP
-// (Microsoft disabled Basic Auth for SMTP in 2026) — use Gmail or Yahoo.
+// ============================================================================
+// Email sending — two paths:
 //
-// IMPORTANT: env vars are read lazily inside getTransporter() — NOT at module
-// load time — so this works even if dotenv.config() runs after this file is
-// imported (a common ES-module load-order gotcha).
+// 1) BREVO_API_KEY set  -> send via Brevo's HTTPS REST API (port 443).
+//    This is the PREFERRED path in production. Many hosting free tiers
+//    (Render, since Sep 2025) block ALL outbound SMTP ports (25/465/587),
+//    which makes nodemailer/SMTP hang or fail with ETIMEDOUT no matter how
+//    correct the SMTP_* credentials are. The Brevo API uses plain HTTPS,
+//    which is never blocked, so this works on Render's free tier.
+//
+// 2) No BREVO_API_KEY, but SMTP_HOST/USER/PASS set -> classic SMTP via
+//    nodemailer. Good for local dev, or any host that doesn't block SMTP
+//    ports, or a non-Brevo provider (Gmail, Yahoo, etc).
+//
+// If neither is configured, codes/links are logged to the console instead
+// (so local dev without any mail setup still works).
+// ============================================================================
 
 let transporter = null;
 let initialized = false;
@@ -29,22 +36,84 @@ function getTransporter() {
       port,
       secure: port === 465, // 465 = SSL, 587 = STARTTLS
       auth: { user, pass },
-      // Without these, a blocked/slow SMTP connection (common on Render's
-      // free tier, since some regions restrict outbound SMTP ports) can
-      // hang the connection far longer than nodemailer's own defaults —
-      // which in turn hangs the whole HTTP request that's awaiting it.
-      connectionTimeout: 10000, // give up trying to connect after 10s
-      greetingTimeout: 10000,   // give up waiting for SMTP greeting after 10s
-      socketTimeout: 15000      // give up on a stalled send after 15s
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     });
   }
   return transporter;
 }
 
-export async function sendResetOtp(email, otp) {
-  const t = getTransporter();
-  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
+function fromAddress() {
+  return process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
+}
 
+// True if we have SOME way to actually send mail (Brevo API or SMTP).
+function isConfigured() {
+  return !!(process.env.BREVO_API_KEY || getTransporter());
+}
+
+// Low-level sender used by every exported function below.
+// attachments: [{ filename, content, contentType }] — content is a plain
+// string/Buffer (NOT pre-base64'd); this function handles encoding for
+// whichever path is used.
+async function sendMail({ to, subject, text, html, attachments }) {
+  const from = fromAddress();
+  const fromName = 'InvoicifysPro';
+
+  if (process.env.BREVO_API_KEY) {
+    const payload = {
+      sender: { name: fromName, email: from },
+      to: [{ email: to }],
+      subject,
+      textContent: text,
+      htmlContent: html
+    };
+    if (attachments && attachments.length) {
+      payload.attachment = attachments.map((a) => ({
+        name: a.filename,
+        content: Buffer.isBuffer(a.content)
+          ? a.content.toString('base64')
+          : Buffer.from(String(a.content), 'utf-8').toString('base64')
+      }));
+    }
+
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'api-key': process.env.BREVO_API_KEY,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`Brevo API error ${res.status}: ${errBody}`);
+    }
+    return;
+  }
+
+  const t = getTransporter();
+  if (!t) {
+    // Neither Brevo API nor SMTP configured — caller already logs a
+    // dev-friendly fallback (OTP/link to console) before calling this,
+    // so this branch should rarely be hit directly.
+    return;
+  }
+
+  await t.sendMail({
+    from: `"${fromName}" <${from}>`,
+    to,
+    subject,
+    text,
+    html,
+    attachments
+  });
+}
+
+export async function sendResetOtp(email, otp) {
   const subject = 'Your InvoicifysPro password reset code';
   const text = `Your InvoicifysPro password reset code is ${otp}. It expires in 10 minutes. If you didn't request this, you can safely ignore this email.`;
   const html = `
@@ -66,29 +135,19 @@ export async function sendResetOtp(email, otp) {
     </div>
   </div>`;
 
-  // No SMTP configured → log to console so development/testing still works.
-  if (!t) {
+  if (!isConfigured()) {
     console.log(`\n============================================================`);
-    console.log(`[InvoicifysPro] Email not configured (set SMTP_* or GMAIL_* in .env).`);
+    console.log(`[InvoicifysPro] Email not configured (set BREVO_API_KEY or SMTP_* in .env).`);
     console.log(`Password reset code for ${email}: ${otp}  (valid 10 min)`);
     console.log(`============================================================\n`);
     return;
   }
 
-  await t.sendMail({
-    from: `"InvoicifysPro" <${fromAddress}>`,
-    to: email,
-    subject,
-    text,
-    html
-  });
+  await sendMail({ to: email, subject, text, html });
   console.log(`[InvoicifysPro] Reset code emailed to ${email}`);
 }
 
 export async function sendEmailVerifyOtp(email, otp) {
-  const t = getTransporter();
-  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
-
   const subject = 'Verify your InvoicifysPro email';
   const text = `Your InvoicifysPro email verification code is ${otp}. It expires in 10 minutes. If you didn't request this, you can safely ignore this email.`;
   const html = `
@@ -110,15 +169,15 @@ export async function sendEmailVerifyOtp(email, otp) {
     </div>
   </div>`;
 
-  if (!t) {
+  if (!isConfigured()) {
     console.log(`\n============================================================`);
-    console.log(`[InvoicifysPro] Email not configured (set SMTP_* or GMAIL_* in .env).`);
+    console.log(`[InvoicifysPro] Email not configured (set BREVO_API_KEY or SMTP_* in .env).`);
     console.log(`Email verification code for ${email}: ${otp}  (valid 10 min)`);
     console.log(`============================================================\n`);
     return;
   }
 
-  await t.sendMail({ from: `"InvoicifysPro" <${fromAddress}>`, to: email, subject, text, html });
+  await sendMail({ to: email, subject, text, html });
   console.log(`[InvoicifysPro] Email-verify code emailed to ${email}`);
 }
 
@@ -149,8 +208,6 @@ const ROLE_TEXT = {
 // STEP 1 of the team flow: "you've been invited, click to accept".
 // Until this link is clicked the member CANNOT log in.
 export async function sendTeamInvite({ email, name, role, companyName, invitedBy, link }) {
-  const t = getTransporter();
-  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
   const org = companyName || 'their company';
   const roleLine = ROLE_TEXT[role] || role;
 
@@ -170,23 +227,21 @@ export async function sendTeamInvite({ email, name, role, companyName, invitedBy
         <p style="font-size:12px;color:#999;line-height:1.5;margin:0 0 6px;">This invitation expires in 7 days. If the button doesn't work, copy this link into your browser:</p>
         <p style="font-size:11.5px;color:#8a8ab0;word-break:break-all;margin:0;">${link}</p>`);
 
-  if (!t) {
+  if (!isConfigured()) {
     console.log(`\n============================================================`);
-    console.log(`[InvoicifysPro] Email not configured (set SMTP_* in .env).`);
+    console.log(`[InvoicifysPro] Email not configured (set BREVO_API_KEY or SMTP_* in .env).`);
     console.log(`Invitation for ${email} — accept link:`);
     console.log(link);
     console.log(`============================================================\n`);
     return;
   }
-  await t.sendMail({ from: `"InvoicifysPro" <${fromAddress}>`, to: email, subject, text, html });
+  await sendMail({ to: email, subject, text, html });
   console.log(`[InvoicifysPro] Invitation emailed to ${email}`);
 }
 
 // STEP 2 of the team flow: invite accepted -> send the temporary password.
 // Logging in with it does NOT sign them in; it forces the set-password screen.
 export async function sendTempPassword({ email, name, tempPassword, companyName }) {
-  const t = getTransporter();
-  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
   const org = companyName || 'your team';
 
   const subject = 'Your InvoicifysPro temporary password';
@@ -201,20 +256,18 @@ export async function sendTempPassword({ email, name, tempPassword, companyName 
         <p style="font-size:13px;color:#555;line-height:1.55;margin:0 0 14px;">For your security this password works <strong>once</strong>. As soon as you enter it, InvoicifysPro will ask you to choose your own password — you'll then log in with that.</p>
         <p style="font-size:12.5px;color:#999;line-height:1.5;margin:0;">Please don't share this email with anyone.</p>`);
 
-  if (!t) {
+  if (!isConfigured()) {
     console.log(`\n============================================================`);
-    console.log(`[InvoicifysPro] Email not configured (set SMTP_* in .env).`);
+    console.log(`[InvoicifysPro] Email not configured (set BREVO_API_KEY or SMTP_* in .env).`);
     console.log(`Temporary password for ${email}: ${tempPassword}`);
     console.log(`============================================================\n`);
     return;
   }
-  await t.sendMail({ from: `"InvoicifysPro" <${fromAddress}>`, to: email, subject, text, html });
+  await sendMail({ to: email, subject, text, html });
   console.log(`[InvoicifysPro] Temporary password emailed to ${email}`);
 }
 
 export async function sendAccountDeleted(email, name, dataDeleted) {
-  const t = getTransporter();
-  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
   const subject = 'Your InvoicifysPro account has been deleted';
   const dataLine = dataDeleted
     ? 'All your invoices, customers and items have been permanently deleted along with your account.'
@@ -233,17 +286,15 @@ export async function sendAccountDeleted(email, name, dataDeleted) {
     </div>
   </div>`;
 
-  if (!t) {
+  if (!isConfigured()) {
     console.log(`[InvoicifysPro] Account deleted for ${email} (email not configured).`);
     return;
   }
-  await t.sendMail({ from: `"InvoicifysPro" <${fromAddress}>`, to: email, subject, text, html });
+  await sendMail({ to: email, subject, text, html });
   console.log(`[InvoicifysPro] Account-deleted email sent to ${email}`);
 }
 
 export async function sendReportEmail({ email, name, companyName, label, csvContent }) {
-  const t = getTransporter();
-  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || 'no-reply@invoicify';
   const subject = `Your ${label} report — ${companyName}`;
   const text = `Hi ${name || 'there'}, attached is your InvoicifysPro business report for ${label}. It covers all invoices and expenses recorded in that period.`;
   const html = shell(`
@@ -252,12 +303,11 @@ export async function sendReportEmail({ email, name, companyName, label, csvCont
 
   const attachmentName = `InvoicifysPro-Report-${label.replace(/\s+/g, '-')}.csv`;
 
-  if (!t) {
+  if (!isConfigured()) {
     console.log(`[InvoicifysPro] Report for ${email} not sent (email not configured).`);
     return;
   }
-  await t.sendMail({
-    from: `"InvoicifysPro" <${fromAddress}>`,
+  await sendMail({
     to: email,
     subject,
     text,
