@@ -7,6 +7,7 @@ const itemSchema = new mongoose.Schema({
   sku: String,
   category: String,
   description: String,
+  hsn: { type: String, default: '' }, // HSN (Goods) or SAC (Service) code — optional, GST filing
   price: { type: Number, default: 0 },        // purchase rate
   sellingPrice: { type: Number, default: 0 },
   tax: { type: Number, default: 0 },

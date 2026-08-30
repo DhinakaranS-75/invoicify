@@ -9,6 +9,7 @@ const paymentSchema = new mongoose.Schema({
 const invoiceItemSchema = new mongoose.Schema({
   name: String,
   description: String,
+  hsn: String, // HSN/SAC code, frozen at invoice time (item's code may change later)
   qty: Number,
   rate: Number
 }, { _id: false });

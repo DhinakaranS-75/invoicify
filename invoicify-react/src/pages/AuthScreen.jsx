@@ -270,6 +270,10 @@ function ForgotForm({ goTo, setResetEmail }) {
   );
 }
 
+// How long the person must wait before "Resend code" becomes clickable
+// again — stops accidental/rapid re-sends (each one is a real email).
+const RESEND_COOLDOWN_SECONDS = 90; // 1:30
+
 function ResetForm({ goTo, resetEmail }) {
   const { toast } = useToast();
   const [otp, setOtp] = useState('');
@@ -280,6 +284,34 @@ function ResetForm({ goTo, resetEmail }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmTouched, setConfirmTouched] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Starts counting down immediately — a code was just sent to land on this screen.
+  const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+  const [resending, setResending] = useState(false);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown > 0]);
+
+  const resendFormatted = `${Math.floor(resendCooldown / 60)}:${String(resendCooldown % 60).padStart(2, '0')}`;
+
+  const resendCode = async () => {
+    if (resendCooldown > 0 || resending) return;
+    setResending(true);
+    try {
+      await api.post('/api/auth/forgot-password', { email: resetEmail });
+      toast('Code sent', `We sent a new code to ${resetEmail}.`);
+    } catch (err) {
+      // Same "don't reveal if it exists" behavior as the initial send.
+      toast('Code sent', 'If that email is registered, a new code is on its way.');
+    } finally {
+      setResending(false);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    }
+  };
 
   // Same live feedback as the signup form — green tick the moment it
   // matches; red "doesn't match" only once they've left the field or
@@ -341,7 +373,12 @@ function ResetForm({ goTo, resetEmail }) {
         {loading ? 'Resetting…' : 'Reset Password'}
       </button>
       <div className="auth-links">
-        <a onClick={() => goTo('forgot')}>Resend code</a> · <a onClick={() => goTo('login')}>Back to login</a>
+        {resendCooldown > 0 ? (
+          <span className="resend-cooldown">Resend code in {resendFormatted}</span>
+        ) : (
+          <a onClick={resendCode}>{resending ? 'Sending…' : 'Resend code'}</a>
+        )}
+        {' '}· <a onClick={() => goTo('login')}>Back to login</a>
       </div>
     </>
   );

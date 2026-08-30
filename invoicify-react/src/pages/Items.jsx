@@ -6,7 +6,7 @@ import { fmt, generateId } from '../utils/format';
 
 const EMPTY_FORM = {
   name: '', type: 'Goods', sku: '', category: 'General',
-  description: '', price: '', selling: '', tax: '', unit: 'Box'
+  description: '', hsn: '', price: '', selling: '', tax: '', unit: 'Box'
 };
 
 export default function Items() {
@@ -34,7 +34,7 @@ export default function Items() {
   const openEdit = (item) => {
     setForm({
       name: item.name || '', type: item.type || 'Goods', sku: item.sku || '',
-      category: item.category || 'General', description: item.description || '',
+      category: item.category || 'General', description: item.description || '', hsn: item.hsn || '',
       price: item.price ?? '', selling: item.sellingPrice ?? '', tax: item.tax ?? '', unit: item.unit || 'Box'
     });
     setEditingId(item.id);
@@ -45,7 +45,7 @@ export default function Items() {
     if (form.name.trim().length < 1) { toast('Name required', 'Please enter a product name.', 'error'); return; }
     const payload = {
       name: form.name.trim(), type: form.type, sku: form.sku.trim(), category: form.category,
-      description: form.description.trim(),
+      description: form.description.trim(), hsn: form.hsn.trim(),
       price: parseFloat(form.price) || 0,
       sellingPrice: parseFloat(form.selling) || 0,
       tax: parseFloat(form.tax) || 0,
@@ -128,18 +128,19 @@ export default function Items() {
                 <thead>
                   <tr>
                     <th style={{ width: '34px' }}><input type="checkbox" checked={count > 0 && selected.size === count} onChange={(e) => toggleSelectAll(e.target.checked)} /></th>
-                    <th>Item Name</th><th>SKU</th><th>Category</th><th>Description</th>
+                    <th>Item Name</th><th>SKU</th><th>HSN/SAC</th><th>Category</th><th>Description</th>
                     <th>Purchase Rate</th><th>Selling Price</th><th>Tax %</th><th>Unit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {count === 0 ? (
-                    <tr><td colSpan="9"><p className="empty-line" style={{ fontSize: '13px', margin: 0 }}>No items yet — add your first product or service.</p></td></tr>
+                    <tr><td colSpan="10"><p className="empty-line" style={{ fontSize: '13px', margin: 0 }}>No items yet — add your first product or service.</p></td></tr>
                   ) : catalogItems.map((it) => (
                     <tr key={it.id} className="inv-row" onClick={() => openEdit(it)} style={{ cursor: 'pointer' }}>
                       <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected.has(it.id)} onChange={() => toggleSelect(it.id)} /></td>
                       <td>{it.name}</td>
                       <td>{it.sku || '—'}</td>
+                      <td>{it.hsn || '—'}</td>
                       <td>{it.category || '—'}</td>
                       <td>{it.description || '—'}</td>
                       <td className="amt-col">{fmt(it.price || 0, currency)}</td>
@@ -232,6 +233,10 @@ export default function Items() {
                     <option>General</option><option>Electronics</option><option>Office Supplies</option><option>Services</option>
                     <option>Software</option><option>Hardware</option><option>Furniture</option><option>Other</option>
                   </select>
+                </div>
+                <div className="field-sm">
+                  <label>{form.type === 'Service' ? 'SAC Code' : 'HSN Code'} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional)</span></label>
+                  <input value={form.hsn} onChange={set('hsn')} placeholder={form.type === 'Service' ? 'e.g. 998314' : 'e.g. 8471'} />
                 </div>
               </div>
               <div className="field-sm"><label>Item Description</label><textarea value={form.description} onChange={set('description')} placeholder="Brief description of this item or service"></textarea></div>

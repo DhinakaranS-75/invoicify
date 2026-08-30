@@ -68,7 +68,7 @@ export default function InvoiceDocument({ data, template = 'classic', currency =
 
       <table className="inv-doc-table">
         <thead>
-          <tr><th>Item</th><th>Qty</th><th>Price</th><th>Amount</th></tr>
+          <tr><th>Item</th>{data.gst && <th>HSN/SAC</th>}<th>Qty</th><th>Price</th><th>Amount</th></tr>
         </thead>
         <tbody>
           {data.items && data.items.length ? data.items.map((li, idx) => (
@@ -77,12 +77,13 @@ export default function InvoiceDocument({ data, template = 'classic', currency =
                 <div style={{ fontWeight: 600 }}>{li.name || <span className="empty-line">Item name</span>}</div>
                 {li.description && <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>{li.description}</div>}
               </td>
+              {data.gst && <td>{li.hsn || '\u2014'}</td>}
               <td>{li.qty}</td>
               <td>{fmt(li.rate, currency)}</td>
               <td>{fmt(li.amount, currency)}</td>
             </tr>
           )) : (
-            <tr><td colSpan="4" className="empty-line">No items added yet</td></tr>
+            <tr><td colSpan={data.gst ? 5 : 4} className="empty-line">No items added yet</td></tr>
           )}
         </tbody>
       </table>
@@ -136,7 +137,7 @@ export default function InvoiceDocument({ data, template = 'classic', currency =
 export function invoiceToDocData(inv, company, signature) {
   const s = inv.snapshot || {};
   const items = (s.items || []).map((li) => ({
-    name: li.name, description: li.description,
+    name: li.name, description: li.description, hsn: li.hsn,
     qty: li.qty, rate: li.rate, amount: (li.qty || 0) * (li.rate || 0)
   }));
   const subtotal = items.reduce((sum, li) => sum + li.amount, 0);

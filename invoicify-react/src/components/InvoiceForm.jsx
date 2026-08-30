@@ -102,8 +102,8 @@ export default function InvoiceForm({ editingId, onBack }) {
   // Items
   const [items, setItems] = useState(
     (es.items && es.items.length)
-      ? es.items.map((li) => ({ name: li.name || '', description: li.description || '', qty: li.qty || 1, rate: li.rate || 0 }))
-      : [{ name: '', description: '', qty: 1, rate: 0 }]
+      ? es.items.map((li) => ({ name: li.name || '', description: li.description || '', hsn: li.hsn || '', qty: li.qty || 1, rate: li.rate || 0 }))
+      : [{ name: '', description: '', hsn: '', qty: 1, rate: 0 }]
   );
   const [itemSearch, setItemSearch] = useState('');
   const [itemSuggest, setItemSuggest] = useState(false);
@@ -124,13 +124,13 @@ export default function InvoiceForm({ editingId, onBack }) {
 
   // ---- Item row helpers ----
   const updateItem = (idx, key, val) => setItems((prev) => prev.map((li, i) => i === idx ? { ...li, [key]: val } : li));
-  const addRow = () => setItems((prev) => [...prev, { name: '', description: '', qty: 1, rate: 0 }]);
+  const addRow = () => setItems((prev) => [...prev, { name: '', description: '', hsn: '', qty: 1, rate: 0 }]);
   const removeRow = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
 
   const addCatalogItem = (it) => {
     setItems((prev) => {
       const rows = prev[0] && !prev[0].name ? prev.slice(1) : prev;
-      return [...rows, { name: it.name, description: it.description || '', qty: 1, rate: it.sellingPrice || it.price || 0 }];
+      return [...rows, { name: it.name, description: it.description || '', hsn: it.hsn || '', qty: 1, rate: it.sellingPrice || it.price || 0 }];
     });
     setItemSearch('');
     setItemSuggest(false);
@@ -178,7 +178,7 @@ export default function InvoiceForm({ editingId, onBack }) {
       toEmail: to.email, toPhone: to.phone, toAddr: to.address, shipTo: to.shipping,
       subject: details.subject, orderNumber: details.orderNumber,
       notes, taxPct, discountPct, signature: companySignature,
-      items: items.map((li) => ({ name: li.name, description: li.description, qty: parseFloat(li.qty) || 0, rate: parseFloat(li.rate) || 0 }))
+      items: items.map((li) => ({ name: li.name, description: li.description, hsn: li.hsn || '', qty: parseFloat(li.qty) || 0, rate: parseFloat(li.rate) || 0 }))
     };
     const existingPayments = editing?.payments || [];
     const invoiceObj = {
@@ -369,14 +369,17 @@ export default function InvoiceForm({ editingId, onBack }) {
                   )}
                 </div>
                 <table className="items-table">
-                  <thead><tr><th style={{ width: '40%' }}>Item</th><th style={{ width: '16%' }}>Qty</th><th style={{ width: '20%' }}>Rate</th><th style={{ width: '20%' }}>Amount</th><th style={{ width: '4%' }}></th></tr></thead>
+                  <thead><tr><th style={{ width: company.gst ? '32%' : '40%' }}>Item</th>{company.gst && <th style={{ width: '14%' }}>HSN/SAC</th>}<th style={{ width: '14%' }}>Qty</th><th style={{ width: '18%' }}>Rate</th><th style={{ width: '18%' }}>Amount</th><th style={{ width: '4%' }}></th></tr></thead>
                   <tbody>
                     {items.map((li, idx) => (
                       <tr key={idx}>
                         <td><input value={li.name} onChange={(e) => updateItem(idx, 'name', e.target.value)} placeholder="Item name" /></td>
+                        {company.gst && (
+                          <td><input value={li.hsn} onChange={(e) => updateItem(idx, 'hsn', e.target.value)} placeholder="HSN/SAC" /></td>
+                        )}
                         <td><input type="number" min="0" value={li.qty} onChange={(e) => updateItem(idx, 'qty', e.target.value)} /></td>
                         <td><input type="number" min="0" step="0.01" value={li.rate} onChange={(e) => updateItem(idx, 'rate', e.target.value)} /></td>
-                        <td className="amt-col">{fmt((parseFloat(li.qty) || 0) * (parseFloat(li.rate) || 0), currency)}</td>
+                        <td className="amt-col-cell"><span className="amt-col">{fmt((parseFloat(li.qty) || 0) * (parseFloat(li.rate) || 0), currency)}</span></td>
                         <td><button className="row-del" onClick={() => removeRow(idx)} title="Remove"><i className="fa-solid fa-trash-can"></i></button></td>
                       </tr>
                     ))}

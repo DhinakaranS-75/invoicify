@@ -49,11 +49,34 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
     |                       | panna auto-add (Zoho maadhiri)        |        |        |          |
  17 | HSN/SAC code field    | Item-la HSN save, invoice-la auto     | Low    | High   | Nice     | ❌
     |                       | column. GST invoice-ku (details below)|        |        |          |
- 18 | Switch OTP mail to    | Gmail SMTP = 100/day limit + account  | Low    | Medium | Should   | ❌
-    | Brevo (or similar)    | risk. Brevo free tier = 300/day,      |        |        | (before  |
-    |                       | built for transactional mail. Swap    |        |        | scaling  |
-    |                       | is easy — mailer.js already           |        |        | users)   |
+ 18 | Switch OTP mail to    | Gmail SMTP = 100/day limit + account  | Low    | Medium | Should   | ✅
+    | Brevo (or similar)    | risk. Brevo free tier = 300/day,      |        |        |          |
+    |                       | built for transactional mail. Swap    |        |        |          |
+    |                       | is easy — mailer.js already           |        |        |          |
     |                       | provider-agnostic.                    |        |        |          |
+    |                       | DONE: mailer.js now uses Brevo's      |        |        |          |
+    |                       | HTTP API (port 443) as primary path,  |        |        |          |
+    |                       | SMTP as fallback. Needed because      |        |        |          |
+    |                       | Render free tier blocks ALL outbound  |        |        |          |
+    |                       | SMTP ports (25/465/587) since Sep     |        |        |          |
+    |                       | 2025 — this was the real root cause   |        |        |          |
+    |                       | of "OTP works locally, not on Render".|        |        |          |
+ 19 | Re-enable automatic   | cronController.js/cronRoutes.js       | Low    | Medium | Nice     | ❌
+    | monthly report email | already built (month-end check, hit   |        |        |          |
+    |                       | daily by an external cron service).   |        |        |          |
+    |                       | Was switched to a manual "Email       |        |        |          |
+    |                       | Report" button because report mail    |        |        |          |
+    |                       | (via old SMTP path) was unreliable    |        |        |          |
+    |                       | on Render free tier. Now that         |        |        |          |
+    |                       | sendReportEmail() goes through Brevo  |        |        |          |
+    |                       | API (see #18), it should work         |        |        |          |
+    |                       | reliably again. To re-enable: confirm |        |        |          |
+    |                       | CRON_SECRET is set on Render, add a   |        |        |          |
+    |                       | separate cron-job.org daily job       |        |        |          |
+    |                       | hitting                               |        |        |          |
+    |                       | /api/cron/send-monthly-reports?key=.. |        |        |          |
+    |                       | Keep the manual button too — both can |        |        |          |
+    |                       | coexist (auto month-end + on-demand). |        |        |          |
 ------------------------------------------------------------------
 
 ==================================================================
