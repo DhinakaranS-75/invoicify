@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 // starting template, not a substitute for real legal advice.
 const LAST_UPDATED = 'August 2026';
 const BUSINESS_NAME = 'InvoicifysProPro';
-const SUPPORT_EMAIL = '[your-support@email.com]';
+const SUPPORT_EMAIL = 'sinvoicify@gmail.com';
 const JURISDICTION = 'India';
 
 export default function Terms() {

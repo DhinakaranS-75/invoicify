@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 // a real review before this is treated as your final, live policy.
 const LAST_UPDATED = 'August 2026';
 const BUSINESS_NAME = 'InvoicifysProPro';
-const SUPPORT_EMAIL = '[your-support@email.com]';
+const SUPPORT_EMAIL = 'sinvoicify@gmail.com';
 
 export default function Privacy() {
   return (
