@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { useTheme } from '../context/ThemeContext';
@@ -9,6 +9,10 @@ import { buildInvoiceNumber } from '../utils/invoiceNumber';
 import { INDIA_STATES } from '../utils/locationData';
 import { api } from '../utils/api';
 import OtpInput from '../components/OtpInput';
+import PasswordStrength from '../components/PasswordStrength';
+import AppLockScreen from '../components/AppLockScreen';
+import NeoToggle from '../components/NeoToggle';
+import { isAppLockEnabled, disableAppLock } from '../utils/appLock';
 
 const TEMPLATES = [
   { id: 'classic', name: 'Classic', desc: 'Colorful bands, bold and friendly.',
@@ -33,6 +37,7 @@ const TEMPLATES = [
 
 const TABS = [
   { id: 'profile', label: 'My Profile', icon: 'fa-user' },
+  { id: 'security', label: 'Privacy & Security', icon: 'fa-shield-halved' },
   { id: 'company', label: 'Company Details', icon: 'fa-building' },
   { id: 'preferences', label: 'Preferences', icon: 'fa-sliders' },
   { id: 'team', label: 'Team Members', icon: 'fa-users-gear' }
@@ -40,6 +45,7 @@ const TABS = [
 
 export default function Settings() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [tab, setTab] = useState(location.state?.tab || 'profile');
   const [drilled, setDrilled] = useState(false); // mobile drill-down
   const { can } = usePermissions();
@@ -69,9 +75,15 @@ export default function Settings() {
 
   return (
     <div className="page active">
-      <div className="app-header-row">
+      <div className="app-header-row settings-page-header">
         <div><h1>Settings</h1><p className="hide-mobile">Manage your account, company, and preferences.</p></div>
       </div>
+
+      {!drilled && (
+        <div className="settings-back settings-back-more" onClick={() => navigate('/more')}>
+          <i className="fa-solid fa-arrow-left"></i> Back to More
+        </div>
+      )}
 
       <div className={'settings-layout' + (drilled ? ' drilled' : '')}>
         <div className="settings-tabs">
@@ -85,6 +97,7 @@ export default function Settings() {
         <div className="settings-content">
           <div className="settings-back" onClick={backToList}><i className="fa-solid fa-arrow-left"></i> Back to Settings</div>
           {tab === 'profile' && <ProfileTab />}
+          {tab === 'security' && <SecurityTab />}
           {tab === 'company' && <CompanyTab />}
           {tab === 'preferences' && <PreferencesTab />}
           {tab === 'team' && can('manageTeam') && <TeamTab />}
@@ -95,33 +108,17 @@ export default function Settings() {
 }
 
 function ProfileTab() {
-  const { currentUser, updateCurrentUser, setCurrentUser, deleteAccount } = useData();
+  const { currentUser, updateCurrentUser, setCurrentUser } = useData();
   const { toast } = useToast();
   const [f, setF] = useState({
     firstName: currentUser?.firstName || '', lastName: currentUser?.lastName || '', email: currentUser?.email || ''
   });
-  const [delOpen, setDelOpen] = useState(false);
-  const [delData, setDelData] = useState(false);
-  const [delConfirm, setDelConfirm] = useState('');
-  const [deleting, setDeleting] = useState(false);
   const [otpOpen, setOtpOpen] = useState(false);
   const [otp, setOtp] = useState('');
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
   const initial = (currentUser?.name || 'U').trim().charAt(0).toUpperCase();
-
-  const confirmDelete = async () => {
-    if (delConfirm.trim().toUpperCase() !== 'DELETE') return;
-    setDeleting(true);
-    try {
-      await deleteAccount(delData);
-      // account gone → DataContext logs out → app returns to the auth screen
-    } catch (err) {
-      setDeleting(false);
-      toast('Delete failed', err.message || 'Could not delete your account.', 'error');
-    }
-  };
 
   const onAvatar = (e) => {
     const file = e.target.files[0];
@@ -220,14 +217,6 @@ function ProfileTab() {
           </div>
           <button className="btn btn-small btn-orange" onClick={save}>Save Changes</button>
         </div>
-
-        <div className="section-gap danger-zone">
-          <h3 style={{ color: 'var(--danger)' }}>Danger Zone</h3>
-          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 12px' }}>Permanently delete your account. This cannot be undone.</p>
-          <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={() => { setDelData(false); setDelConfirm(''); setDelOpen(true); }}>
-            <i className="fa-solid fa-trash-can"></i> Delete Account
-          </button>
-        </div>
       </div>
 
       {/* Email verification code entry */}
@@ -251,6 +240,280 @@ function ProfileTab() {
             {sendingOtp ? 'Resending…' : "Didn't get it? Resend code"}
           </button>
         </div>
+      </div>
+
+    </div>
+  );
+}
+
+function SecurityTab() {
+  const { currentUser, setCurrentUser, deleteAccount } = useData();
+  const { toast } = useToast();
+  const [marketingOptIn, setMarketingOptIn] = useState(!!currentUser?.marketingOptIn);
+  const [savingMarketing, setSavingMarketing] = useState(false);
+  const [lockEnabled, setLockEnabled] = useState(isAppLockEnabled());
+  const [lockSetupOpen, setLockSetupOpen] = useState(false);
+  const [lockOffConfirmOpen, setLockOffConfirmOpen] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
+  const [delData, setDelData] = useState(false);
+  const [delConfirm, setDelConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [pw, setPwField] = useState({ current: '', next: '', confirm: '' });
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNextPw, setShowNextPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
+  const setPw = (k) => (e) => setPwField((p) => ({ ...p, [k]: e.target.value }));
+  const [loginActivity, setLoginActivity] = useState([]);
+  const [loadingActivity, setLoadingActivity] = useState(true);
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [revokingId, setRevokingId] = useState(null);
+
+  const loadActivity = () => {
+    setLoadingActivity(true);
+    api.get('/api/auth/login-activity')
+      .then((res) => {
+        setLoginActivity(res.activity || []);
+        setCurrentSessionId(res.currentSessionId || null);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingActivity(false));
+  };
+
+  useEffect(() => { loadActivity(); }, []);
+
+  const revokeSession = async (id) => {
+    setRevokingId(id);
+    try {
+      await api.put(`/api/auth/login-activity/${id}/revoke`);
+      toast('Device logged out', 'That device will need to log in again.');
+      loadActivity();
+    } catch (err) {
+      toast('Could not log out that device', err.message || 'Please try again.', 'error');
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
+  const confirmPwMatches = pw.confirm.length > 0 && pw.confirm === pw.next;
+  const confirmPwMismatch = pw.confirm.length > 0 && pw.confirm !== pw.next;
+
+  const submitChangePassword = async () => {
+    if (!pw.current || !pw.next) { toast('Missing fields', 'Fill in your current and new password.', 'error'); return; }
+    if (pw.next.length < 8) { toast('Password too short', 'New password must be at least 8 characters.', 'error'); return; }
+    if (pw.next !== pw.confirm) { toast("Passwords don't match", 'Re-enter your new password.', 'error'); return; }
+    setChangingPw(true);
+    try {
+      await api.put('/api/auth/change-password', { currentPassword: pw.current, newPassword: pw.next });
+      toast('Password changed', 'Your password was updated successfully.');
+      setPwField({ current: '', next: '', confirm: '' });
+    } catch (err) {
+      toast('Could not change password', err.message || 'Please try again.', 'error');
+    } finally {
+      setChangingPw(false);
+    }
+  };
+
+  const confirmTurnOffLock = () => {
+    disableAppLock();
+    setLockEnabled(false);
+    setLockOffConfirmOpen(false);
+    toast('App Lock turned off', 'The app will no longer ask for a PIN.');
+  };
+
+  const toggleMarketingOptIn = async (enabled) => {
+    setSavingMarketing(true);
+    try {
+      const { user } = await api.put('/api/auth/profile', { marketingOptIn: enabled });
+      setCurrentUser(user);
+      setMarketingOptIn(enabled);
+      toast(
+        enabled ? 'Marketing emails enabled' : 'Marketing emails disabled',
+        enabled ? "We'll let you know about new features and updates." : "We won't send you marketing emails."
+      );
+    } catch (err) {
+      toast('Could not save', err.message || 'Please try again.', 'error');
+    } finally {
+      setSavingMarketing(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (delConfirm.trim().toUpperCase() !== 'DELETE') return;
+    setDeleting(true);
+    try {
+      await deleteAccount(delData);
+      // account gone → DataContext logs out → app returns to the auth screen
+    } catch (err) {
+      setDeleting(false);
+      toast('Delete failed', err.message || 'Could not delete your account.', 'error');
+    }
+  };
+
+  return (
+    <div className="settings-panel active">
+      <div className="panel" style={{ maxWidth: '720px' }}>
+        <h3>Change Password</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Update the password you use to log in.</p>
+        <div className="field-sm">
+          <label>Current Password</label>
+          <input type={showCurrentPw ? 'text' : 'password'} value={pw.current} onChange={setPw('current')} placeholder="Enter current password" />
+          <button type="button" className="toggle-eye" onClick={() => setShowCurrentPw((s) => !s)}>
+            <i className={'fa-solid ' + (showCurrentPw ? 'fa-eye-slash' : 'fa-eye')}></i>
+          </button>
+        </div>
+        <div className="field-sm">
+          <label>New Password</label>
+          <input type={showNextPw ? 'text' : 'password'} value={pw.next} onChange={setPw('next')} placeholder="Min 8 characters" />
+          <button type="button" className="toggle-eye" onClick={() => setShowNextPw((s) => !s)}>
+            <i className={'fa-solid ' + (showNextPw ? 'fa-eye-slash' : 'fa-eye')}></i>
+          </button>
+        </div>
+        <PasswordStrength password={pw.next} />
+        <div className="field-sm">
+          <label>Confirm New Password</label>
+          <input
+            className={confirmPwMismatch ? 'invalid' : ''}
+            type={showConfirmPw ? 'text' : 'password'}
+            value={pw.confirm}
+            onChange={setPw('confirm')}
+            placeholder="Re-enter new password"
+          />
+          {confirmPwMatches && (
+            <span className="confirm-match-tick" title="Passwords match"><i className="fa-solid fa-circle-check"></i></span>
+          )}
+          <button type="button" className="toggle-eye" onClick={() => setShowConfirmPw((s) => !s)}>
+            <i className={'fa-solid ' + (showConfirmPw ? 'fa-eye-slash' : 'fa-eye')}></i>
+          </button>
+        </div>
+        <button className="btn btn-small btn-orange" onClick={submitChangePassword} disabled={changingPw}>
+          {changingPw ? 'Changing…' : 'Change Password'}
+        </button>
+      </div>
+
+      <div className="panel section-gap" style={{ maxWidth: '720px' }}>
+        <h3>App Lock</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>
+          Require a 4-digit PIN every time the app is opened or reopened from the background — so you don't
+          have to type your email and password each time.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', flexWrap: 'wrap' }}>
+          <NeoToggle
+            id="neo-toggle-applock"
+            checked={lockEnabled}
+            onChange={(e) => { if (e.target.checked) setLockSetupOpen(true); else setLockOffConfirmOpen(true); }}
+          />
+          {lockEnabled && (
+            <button className="btn btn-small btn-outline" onClick={() => setLockSetupOpen(true)}>
+              Change PIN
+            </button>
+          )}
+        </div>
+        <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '10px 0 0' }}>
+          This PIN is stored only on this device — there's no "forgot PIN" recovery. If you forget it, you'll
+          need to uninstall and reinstall the app to log in again.
+        </p>
+      </div>
+
+      {lockSetupOpen && (
+        <div className="confirm-overlay show" onClick={(e) => { if (e.target === e.currentTarget) setLockSetupOpen(false); }}>
+          <AppLockScreen
+            mode="setup"
+            onCancel={() => setLockSetupOpen(false)}
+            onSetupComplete={() => {
+              setLockEnabled(true);
+              setLockSetupOpen(false);
+              toast('App Lock enabled', "You'll be asked for your PIN next time you open the app.");
+            }}
+          />
+        </div>
+      )}
+
+      <div className={'confirm-overlay' + (lockOffConfirmOpen ? ' show' : '')} onClick={(e) => { if (e.target === e.currentTarget) setLockOffConfirmOpen(false); }}>
+        <div className="confirm-box" style={{ textAlign: 'left', maxWidth: '400px' }}>
+          <h3>Turn off App Lock?</h3>
+          <p>The app will no longer ask for a PIN when you open it — anyone with access to your phone will be able to open InvoicifysPro directly.</p>
+          <div className="confirm-actions" style={{ flexDirection: 'row' }}>
+            <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={confirmTurnOffLock}>Turn Off</button>
+            <button className="btn btn-small btn-outline" onClick={() => setLockOffConfirmOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="panel section-gap" style={{ maxWidth: '720px' }}>
+        <h3>Active Sessions</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Devices logged into your account, most recent first. Log out any you don't recognize.</p>
+        {loadingActivity ? (
+          <p style={{ color: 'var(--muted)', fontSize: '13px' }}>Loading…</p>
+        ) : loginActivity.length === 0 ? (
+          <p style={{ color: 'var(--muted)', fontSize: '13px' }}>No login activity recorded yet.</p>
+        ) : (
+          <div className="login-activity-list">
+            {loginActivity.map((a) => {
+              const isCurrent = currentSessionId && a._id === currentSessionId;
+              return (
+                <div key={a._id} className="login-activity-row">
+                  <div className="login-activity-icon"><i className="fa-solid fa-desktop"></i></div>
+                  <div className="login-activity-info">
+                    <div className="login-activity-device">
+                      {a.device || 'Unknown device'}
+                      {isCurrent && <span className="login-activity-badge">This device</span>}
+                    </div>
+                    <div className="login-activity-meta">{new Date(a.createdAt).toLocaleString()} · {a.ip || 'Unknown IP'}</div>
+                  </div>
+                  {a.revoked ? (
+                    <span className="login-activity-loggedout">Logged out</span>
+                  ) : (
+                    <button
+                      className="btn btn-small btn-outline"
+                      style={{ flex: 'none' }}
+                      disabled={revokingId === a._id}
+                      onClick={() => revokeSession(a._id)}
+                    >
+                      {revokingId === a._id ? 'Logging out…' : 'Log out'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '12px 0 0' }}>
+          Don't recognize a login? Change your password right away.
+        </p>
+      </div>
+
+      <div className="panel section-gap" style={{ maxWidth: '720px' }}>
+        <h3>Data Sharing</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>
+          We don't currently send marketing emails, but if we introduce them in the future, this
+          controls whether you receive them. Essential emails (OTP, password reset, invoices) are
+          always sent regardless of this setting.
+        </p>
+        <NeoToggle
+          id="neo-toggle-marketing"
+          checked={marketingOptIn}
+          disabled={savingMarketing}
+          onChange={(e) => toggleMarketingOptIn(e.target.checked)}
+        />
+      </div>
+
+      <div className="panel section-gap" style={{ maxWidth: '720px' }}>
+        <h3>Privacy Policy</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 14px' }}>
+          Read how InvoicifysPro handles your data — what's collected, how it's used, and your rights.
+        </p>
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="btn btn-small btn-outline" style={{ textDecoration: 'none', display: 'inline-flex' }}>
+          <i className="fa-solid fa-arrow-up-right-from-square"></i>&nbsp; View Privacy Policy
+        </a>
+      </div>
+
+      <div className="panel section-gap" style={{ maxWidth: '720px' }}>
+        <h3 style={{ color: 'var(--danger)' }}>Danger Zone</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 12px' }}>Permanently delete your account. This cannot be undone.</p>
+        <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={() => { setDelData(false); setDelConfirm(''); setDelOpen(true); }}>
+          <i className="fa-solid fa-trash-can"></i> Delete Account
+        </button>
       </div>
 
       {/* Delete account confirmation */}
@@ -395,6 +658,13 @@ function PreferencesTab() {
   const { toast } = useToast();
   const [cfg, setCfg] = useState(invoiceNumberConfig);
   const setC = (k) => (e) => setCfg((p) => ({ ...p, [k]: e.target.value }));
+  const [subTab, setSubTab] = useState(null); // null = show the list
+
+  const SUB_TABS = [
+    { id: 'appearance', label: 'Appearance', icon: 'fa-palette' },
+    { id: 'numbering', label: 'Invoice Numbering', icon: 'fa-hashtag' },
+    { id: 'template', label: 'Invoice Template', icon: 'fa-swatchbook' }
+  ];
 
   const selectTemplate = (id) => { setInvoiceTemplate(id); localStorage.setItem('iv_onboard_tmpl', '1'); toast('Template applied', `${TEMPLATES.find((t) => t.id === id)?.name} is now your invoice design.`); };
 
@@ -405,66 +675,88 @@ function PreferencesTab() {
 
   const preview = buildInvoiceNumber({ ...cfg, padding: parseInt(cfg.padding) || 0, next: parseInt(cfg.next) || 1 });
 
-  return (
-    <div className="settings-panel active">
-      <div className="panel" style={{ maxWidth: '720px' }}>
-        <h3>Appearance</h3>
-        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Choose how InvoicifysPro looks on this device.</p>
-        <div className="theme-segment">
-          <button className={'theme-seg-btn' + (mode === 'light' ? ' active' : '')} onClick={() => setMode('light')}>
-            <i className="fa-solid fa-sun"></i> Light
-          </button>
-          <button className={'theme-seg-btn' + (mode === 'dark' ? ' active' : '')} onClick={() => setMode('dark')}>
-            <i className="fa-solid fa-moon"></i> Dark
-          </button>
-          <button className={'theme-seg-btn' + (mode === 'system' ? ' active' : '')} onClick={() => setMode('system')}>
-            <i className="fa-solid fa-display"></i> System
-          </button>
-        </div>
-        <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '10px 0 0' }}>
-          "System" matches your device's own light/dark setting automatically.
-        </p>
-      </div>
-
-      <div className="panel section-gap" style={{ maxWidth: '720px' }}>
-        <h3>Invoice Numbering</h3>
-        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Customize how your invoice numbers are generated.</p>
-        <div className="grid2">
-          <div className="field-sm"><label>Prefix</label><input value={cfg.prefix} onChange={setC('prefix')} placeholder="INV" /></div>
-          <div className="field-sm"><label>Middle (optional)</label><input value={cfg.middle} onChange={setC('middle')} placeholder="2026" /></div>
-          <div className="field-sm"><label>Separator</label><input value={cfg.separator} onChange={setC('separator')} placeholder="-" maxLength="3" /></div>
-          <div className="field-sm"><label>Number Padding</label><input type="number" min="0" max="8" value={cfg.padding} onChange={setC('padding')} /></div>
-          <div className="field-sm"><label>Next Number</label><input type="number" min="1" value={cfg.next} onChange={setC('next')} /></div>
-        </div>
-        <div className="invnum-help">Prefix is required · Middle is optional (year or company code)</div>
-        <div className="invnum-preview">Preview: <strong>{preview}</strong></div>
-        <div className="invnum-tips">
-          <div className="tips-title"><i className="fa-solid fa-lightbulb"></i> Format Tips</div>
-          <ul>
-            <li><strong>INV</strong> = Invoice — the most common prefix.</li>
-            <li>Middle for year: <strong>INV-2026-001</strong> for easy filing.</li>
-            <li>Middle for company: <strong>INV-COM-001</strong> (COM = 3-letter company code).</li>
-            <li>Leave Middle blank for a simple <strong>INV-001</strong> format.</li>
-          </ul>
-        </div>
-        <button className="btn btn-small btn-orange section-gap" onClick={saveNumbering}>Save Numbering</button>
-      </div>
-
-      <div className="panel section-gap" style={{ maxWidth: '720px' }}>
-        <h3>Invoice Template</h3>
-        <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Choose a design for your invoices. Applies to preview, PDF, and print.</p>
-        <div className="template-grid">
-          {TEMPLATES.map((t) => (
-            <div key={t.id} className={'template-card' + (invoiceTemplate === t.id ? ' selected' : '')} onClick={() => selectTemplate(t.id)}>
-              <div className={'template-thumb tpl-thumb-' + t.id} style={t.style}>
-                {t.thumb}
-              </div>
-              <div className="template-name">{t.name} <i className="fa-solid fa-circle-check tpl-check"></i></div>
-              <div className="template-desc">{t.desc}</div>
-            </div>
+  if (!subTab) {
+    return (
+      <div className="settings-panel active">
+        <div className="pref-tabs" style={{ maxWidth: '720px' }}>
+          {SUB_TABS.map((t) => (
+            <button key={t.id} className="settings-tab" onClick={() => setSubTab(t.id)}>
+              <i className={'fa-solid ' + t.icon}></i> {t.label} <i className="fa-solid fa-chevron-right tab-chevron"></i>
+            </button>
           ))}
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="settings-panel active">
+      <div className="pref-back" onClick={() => setSubTab(null)}><i className="fa-solid fa-arrow-left"></i> Back to Preferences</div>
+
+      {subTab === 'appearance' && (
+        <div className="panel" style={{ maxWidth: '720px' }}>
+          <h3>Appearance</h3>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Choose how InvoicifysPro looks on this device.</p>
+          <div className="theme-segment">
+            <button className={'theme-seg-btn' + (mode === 'light' ? ' active' : '')} onClick={() => setMode('light')}>
+              <i className="fa-solid fa-sun"></i> Light
+            </button>
+            <button className={'theme-seg-btn' + (mode === 'dark' ? ' active' : '')} onClick={() => setMode('dark')}>
+              <i className="fa-solid fa-moon"></i> Dark
+            </button>
+            <button className={'theme-seg-btn' + (mode === 'system' ? ' active' : '')} onClick={() => setMode('system')}>
+              <i className="fa-solid fa-display"></i> System
+            </button>
+          </div>
+          <p style={{ color: 'var(--muted)', fontSize: '12px', margin: '10px 0 0' }}>
+            "System" matches your device's own light/dark setting automatically.
+          </p>
+        </div>
+      )}
+
+      {subTab === 'numbering' && (
+        <div className="panel" style={{ maxWidth: '720px' }}>
+          <h3>Invoice Numbering</h3>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Customize how your invoice numbers are generated.</p>
+          <div className="grid2">
+            <div className="field-sm"><label>Prefix</label><input value={cfg.prefix} onChange={setC('prefix')} placeholder="INV" /></div>
+            <div className="field-sm"><label>Middle (optional)</label><input value={cfg.middle} onChange={setC('middle')} placeholder="2026" /></div>
+            <div className="field-sm"><label>Separator</label><input value={cfg.separator} onChange={setC('separator')} placeholder="-" maxLength="3" /></div>
+            <div className="field-sm"><label>Number Padding</label><input type="number" min="0" max="8" value={cfg.padding} onChange={setC('padding')} /></div>
+            <div className="field-sm"><label>Next Number</label><input type="number" min="1" value={cfg.next} onChange={setC('next')} /></div>
+          </div>
+          <div className="invnum-help">Prefix is required · Middle is optional (year or company code)</div>
+          <div className="invnum-preview">Preview: <strong>{preview}</strong></div>
+          <div className="invnum-tips">
+            <div className="tips-title"><i className="fa-solid fa-lightbulb"></i> Format Tips</div>
+            <ul>
+              <li><strong>INV</strong> = Invoice — the most common prefix.</li>
+              <li>Middle for year: <strong>INV-2026-001</strong> for easy filing.</li>
+              <li>Middle for company: <strong>INV-COM-001</strong> (COM = 3-letter company code).</li>
+              <li>Leave Middle blank for a simple <strong>INV-001</strong> format.</li>
+            </ul>
+          </div>
+          <button className="btn btn-small btn-orange section-gap" onClick={saveNumbering}>Save Numbering</button>
+        </div>
+      )}
+
+      {subTab === 'template' && (
+        <div className="panel" style={{ maxWidth: '720px' }}>
+          <h3>Invoice Template</h3>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 16px' }}>Choose a design for your invoices. Applies to preview, PDF, and print.</p>
+          <div className="template-grid">
+            {TEMPLATES.map((t) => (
+              <div key={t.id} className={'template-card' + (invoiceTemplate === t.id ? ' selected' : '')} onClick={() => selectTemplate(t.id)}>
+                <div className={'template-thumb tpl-thumb-' + t.id} style={t.style}>
+                  {t.thumb}
+                </div>
+                <div className="template-name">{t.name} <i className="fa-solid fa-circle-check tpl-check"></i></div>
+                <div className="template-desc">{t.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

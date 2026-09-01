@@ -17,6 +17,27 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
  2  | Recurring invoices    | Monthly rent/subscription auto        | High   | High   | MUST     | ❌
     |                       | generate                              |        |        |          |
  3  | Payment reminders     | Overdue-ku auto email reminder        | Medium | High   | MUST     | ❌
+    |                       | DESIGN (finalized, not built yet):    |        |        |          |
+    |                       | - Invoice created -> mail immediately |        |        |          |
+    |                       | - Daily 10am cron, until due date:    |        |        |          |
+    |                       |   countdown mail ("X days left")      |        |        |          |
+    |                       | - Day after due date (1st overdue     |        |        |          |
+    |                       |   day): ONE special urgent mail        |        |        |          |
+    |                       |   ("Overdue! Please pay immediately") |        |        |          |
+    |                       |   distinct from the regular reminders |        |        |          |
+    |                       | - From 2nd overdue day onward: back   |        |        |          |
+    |                       |   to daily generic "Payment pending"  |        |        |          |
+    |                       |   reminder (no escalating day-count)  |        |        |          |
+    |                       | - Continues forever (no cap) until    |        |        |          |
+    |                       |   payment is recorded on the invoice  |        |        |          |
+    |                       | - Recording payment stops the cycle   |        |        |          |
+    |                       |   from the next day's cron run        |        |        |          |
+    |                       | - Reuses the existing cron pattern    |        |        |          |
+    |                       |   (cronController.js / external       |        |        |          |
+    |                       |   cron-job.org daily ping) + Brevo    |        |        |          |
+    |                       |   mailer.js already built for #18     |        |        |          |
+    |                       | - Watch Brevo's 300/day free quota    |        |        |          |
+    |                       |   once many overdue invoices exist    |        |        |          |
  4  | Dashboard analytics   | Revenue graph, top customers, trends  | Medium | High   | Nice     | ✅
     |                       | (cashflow chart, income/expense by    |        |        |          |
     |                       | method, top 5 customers/items done)   |        |        |          |
@@ -149,4 +170,60 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
    selection venum (manual illa). Aana adhu GOVERNMENT PORTAL
    filing side, un invoice app-la illa. App-la HSN field
    podhum, filing thani.
+------------------------------------------------------------------
+
+==================================================================
+   APP RENAME — DECISION PENDING (keeping "InvoicifysPro" for now)
+==================================================================
+Reason: "InvoicifysPro" / "Invoicifys" hard to read/pronounce for
+users. Renaming considered, decided to defer — keep current name
+for now, decide later.
+
+Names checked and REJECTED (already taken / too crowded):
+  - NeatBill    -> taken on App Store (Altgo Tech's bill tracker)
+  - Billzy      -> taken on Play Store AND App Store
+  - Kanakku     -> crowded (Amma Kanakku, Vatti Kanakku, KanakkuBook,
+                   Oon Kanakku, + many invoice/billing code templates)
+  - DevInvoice  -> taken (devinvoice.io — freelancer invoicing SaaS)
+  - BillDev / BillDevDom -> taken (billdev.in — Indian GST billing
+                   software company, active on Play Store)
+
+Name checked and looked AVAILABLE (not confirmed via actual Play
+Console / App Store Connect signup — only web-search checked):
+  - Bilvo       -> no exact match found on Play Store or App Store
+
+Next time this comes up: verify "Bilvo" (or a fresh candidate) by
+actually trying to register it in Play Console / App Store Connect,
+since that's the only 100% reliable availability check.
+------------------------------------------------------------------
+
+==================================================================
+   CRASH REPORTS — feature idea (attempted, reverted, not built)
+==================================================================
+Part of Settings -> Privacy & Security. Category: Privacy (data
+sharing), not Security.
+
+Idea: integrate Sentry (free tier) for crash/error reporting —
+backend (@sentry/node) + frontend (@sentry/react). Settings would
+have an On/Off toggle so the user can opt out of sending crash data
+from their device.
+
+Was fully built once (working code), then reverted at user's request
+— setup process (2 separate Sentry projects/DSNs, env vars on both
+Render + Vercel, npm installs) felt like too much for what it's
+worth right now. No code currently in the project for this.
+
+If revisited later, rough shape:
+  - backend: instrument.js (Sentry.init, imported FIRST before
+    anything else) + Sentry.setupExpressErrorHandler(app) after
+    routes, before the app's own error handler. Needs SENTRY_DSN env
+    var (Node.js project on sentry.io).
+  - frontend: Sentry.init() in main.jsx before mounting React, wrap
+    App in Sentry.ErrorBoundary with a friendly fallback UI instead
+    of a blank white screen on crash. Needs VITE_SENTRY_DSN env var
+    (separate React project on sentry.io) + a beforeSend() hook that
+    checks a localStorage on/off flag so the Settings toggle works
+    live without needing an app restart.
+  - Settings -> Privacy & Security: simple On/Off segment control,
+    same pattern as the App Lock toggle.
 ------------------------------------------------------------------

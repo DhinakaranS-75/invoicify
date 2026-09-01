@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 // a real review before this is treated as your final, live policy.
 const LAST_UPDATED = 'August 2026';
 const BUSINESS_NAME = 'InvoicifysProPro';
-const SUPPORT_EMAIL = 'sinvoicify@gmail.com';
+const SUPPORT_EMAIL = 'supportinvoice@devdom.in';
 
 export default function Privacy() {
   return (
@@ -30,6 +30,7 @@ export default function Privacy() {
         <p><strong>Business information</strong> — company name, address, GSTIN, bank details, and logo that you add for your invoices.</p>
         <p><strong>Data you create</strong> — customer records, catalog items, invoices, expenses, and team members you add while using the Service.</p>
         <p><strong>Usage data</strong> — basic technical information like device type and browser, used only to keep the Service working reliably.</p>
+        <p><strong>Login/security data</strong> — when you log in, we record the IP address, device/browser type, and timestamp of that login. This is shown back to you in Settings under "Active Sessions" so you can see recent logins and log out devices you don't recognize. These records are automatically deleted after 90 days.</p>
 
         <h2>2. How We Use This Information</h2>
         <ul>
@@ -39,6 +40,14 @@ export default function Privacy() {
           <li>To diagnose and fix technical issues.</li>
         </ul>
         <p>We do not sell your data, and we do not show ads based on your data.</p>
+        <p>
+          <strong>Marketing communications:</strong> We do not currently send marketing or
+          promotional emails. If we introduce them in the future, they will be sent only to
+          users who have opted in via the "Data Sharing" toggle in Settings, which is off by
+          default. Essential account emails (OTP codes, password resets, invitations, and
+          your own invoices) are sent regardless of this setting, since they're necessary to
+          operate the Service — this toggle only affects optional marketing communications.
+        </p>
 
         <h2>3. Where Your Data Is Stored</h2>
         <p>
@@ -70,13 +79,10 @@ export default function Privacy() {
           except where we're required to retain records for legal or accounting reasons.
         </p>
         <p>
-          <strong>Inactive accounts:</strong> If you don't log in to your account for
-          <strong> 30 consecutive days</strong>, your account and all associated data —
-          including your email, password, mobile number, company details, GSTIN, invoices,
-          items/catalog, and expenses — will be <strong>permanently deleted</strong> from
-          our systems. Once deleted, this data cannot be recovered. If you attempt to log
-          in after this period, you'll be informed that no account exists for that email,
-          and you'll need to sign up again as a new user.
+          <strong>Inactive accounts:</strong> We may introduce an automatic deletion policy
+          for long-inactive accounts in the future. If we do, we'll update this policy with
+          the specific timeframe before it takes effect, and it will not apply
+          retroactively without notice.
         </p>
 
         <h2>7. Your Rights</h2>

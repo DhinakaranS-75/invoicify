@@ -21,6 +21,11 @@ connectDB();
 
 const app = express();
 
+// Render (and most cloud hosts) sit behind a reverse proxy — without this,
+// req.ip would show the proxy's internal IP instead of the real visitor's,
+// which breaks login-activity IP logging (see authController.login).
+app.set('trust proxy', true);
+
 // ---- Middleware ----
 // Allow the React frontend to talk to this API.
 // In development we allow localhost AND local-network IPs (e.g. 192.168.x.x)
@@ -81,7 +86,7 @@ function getLanIp() {
 
 app.listen(PORT, '0.0.0.0', () => {
   const lanIp = getLanIp();
-  const emailReady = !!(process.env.SMTP_HOST || process.env.SMTP_USER || process.env.GMAIL_USER);
+  const emailReady = !!(process.env.SMTP_HOST || process.env.SMTP_USER || process.env.GMAIL_USER || process.env.BREVO_API_KEY);
   console.log('');
   console.log('  ╔══════════════════════════════════════════════╗');
   console.log('  ║        🧾  I N V O I C I F Y   —   API         ║');

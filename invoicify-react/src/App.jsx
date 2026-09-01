@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useData } from './context/DataContext';
 import { DataProvider } from './context/DataContext';
@@ -13,10 +14,52 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import IdleWarning from './components/IdleWarning';
 import InstallPrompt from './components/InstallPrompt';
+import AppLockScreen from './components/AppLockScreen';
+import { isAppLockEnabled } from './utils/appLock';
 
 function Root() {
   const { currentUser, booting } = useData();
   const { pathname } = useLocation();
+  const [isLocked, setIsLocked] = useState(false);
+  const hasCheckedInitialLock = useRef(false);
+
+  // Is this the installed app (PWA/TWA standalone), not just a regular
+  // browser tab? App Lock only makes sense there — someone with the site
+  // open in a browser tab shouldn't get PIN-locked every time they switch
+  // tabs while working.
+  const isInstalledApp =
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true; // iOS Safari "Add to Home Screen"
+
+  // App Lock: re-lock every time the installed app is opened or resumed
+  // from the background — not just after the 10-minute idle timer, which
+  // only fires while the app stays in the foreground the whole time.
+  //
+  // Two triggers:
+  // 1. Cold start / boot-restored session — checked once, right after the
+  //    initial "am I logged in?" check finishes. Deliberately does NOT
+  //    fire for a fresh interactive login (someone who just typed their
+  //    password a moment ago doesn't need a PIN too).
+  // 2. Coming back from the background (visibilitychange) — covers the
+  //    common case of switching apps and returning.
+  useEffect(() => {
+    if (booting || !isInstalledApp) return;
+    if (!hasCheckedInitialLock.current) {
+      hasCheckedInitialLock.current = true;
+      if (currentUser && isAppLockEnabled()) setIsLocked(true);
+    }
+  }, [booting, currentUser, isInstalledApp]);
+
+  useEffect(() => {
+    if (!isInstalledApp) return;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && currentUser && isAppLockEnabled()) {
+        setIsLocked(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [currentUser, isInstalledApp]);
 
   // Legal pages are public and don't depend on auth/boot state at all —
   // check them first so they're instant even before the login check runs.
@@ -38,13 +81,17 @@ function Root() {
   if (!currentUser) {
     const authPaths = ['/login', '/signup', '/forgot', '/reset'];
     if (authPaths.some((pth) => pathname.startsWith(pth))) return <AuthScreen />;
-
-    const isInstalledApp =
-      window.matchMedia?.('(display-mode: standalone)').matches ||
-      window.navigator.standalone === true; // iOS Safari "Add to Home Screen"
     if (isInstalledApp) return <AuthScreen />;
-
     return <Landing />;
+  }
+
+  // Logged in, but the App Lock PIN screen is covering the app right now.
+  if (isLocked) {
+    return (
+      <div className="app-lock-screen">
+        <AppLockScreen mode="unlock" onUnlock={() => setIsLocked(false)} />
+      </div>
+    );
   }
 
   // Logged in but hasn't completed company onboarding -> onboarding

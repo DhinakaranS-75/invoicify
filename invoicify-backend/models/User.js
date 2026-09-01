@@ -38,6 +38,9 @@ const userSchema = new mongoose.Schema({
   // Settings. Reset to false whenever the email address itself changes
   // (a new address is unverified until proven again).
   emailVerified: { type: Boolean, default: false },
+  // Off by default — no marketing emails are sent unless the user
+  // explicitly opts in (Settings -> Privacy & Security -> Data Sharing).
+  marketingOptIn: { type: Boolean, default: false },
   emailVerifyOtp: String,        // bcrypt-hashed 6-digit code
   emailVerifyOtpExpiry: Date,
 

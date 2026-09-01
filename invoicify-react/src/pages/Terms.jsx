@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 // starting template, not a substitute for real legal advice.
 const LAST_UPDATED = 'August 2026';
 const BUSINESS_NAME = 'InvoicifysProPro';
-const SUPPORT_EMAIL = 'sinvoicify@gmail.com';
+const SUPPORT_EMAIL = 'supportinvoice@devdom.in';
 const JURISDICTION = 'India';
 
 export default function Terms() {
@@ -108,15 +108,10 @@ export default function Terms() {
           believe are being used for fraudulent or illegal activity.
         </p>
         <p>
-          <strong>Automatic deletion for inactivity:</strong> To protect your data and
-          keep our systems secure, any account that has not been logged into for{' '}
-          <strong>30 consecutive days</strong> will be considered inactive, and all data
-          associated with it — including your email, password, mobile number, company
-          details, GSTIN, invoices, items, and expenses — will be{' '}
-          <strong>permanently and irreversibly deleted</strong>. If you try to log in
-          after this period, you'll be told that no account exists, and you'll need to
-          sign up again as a new user. We recommend logging in at least once every 30
-          days if you'd like to keep using your account and data.
+          <strong>Automatic deletion for inactivity:</strong> We may introduce a policy of
+          automatically deleting long-inactive accounts in the future, to protect your data
+          and keep our systems secure. If we do, we'll update these Terms with the specific
+          timeframe and give notice before it takes effect.
         </p>
 
         <h2>10. Changes to These Terms</h2>

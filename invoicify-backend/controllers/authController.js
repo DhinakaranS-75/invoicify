@@ -5,11 +5,17 @@ import User from '../models/User.js';
 import Customer from '../models/Customer.js';
 import Item from '../models/Item.js';
 import Invoice from '../models/Invoice.js';
+import LoginActivity from '../models/LoginActivity.js';
 import { sendResetOtp, sendAccountDeleted, sendTeamInvite, sendTempPassword, sendEmailVerifyOtp as sendEmailVerifyOtpMail } from '../utils/mailer.js';
+import { parseUserAgent } from '../utils/parseUserAgent.js';
 
-// Creates a signed JWT token that expires in 30 days
-function generateToken(id) {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+// Creates a signed JWT token that expires in 30 days. sessionId (optional)
+// ties this token to a specific LoginActivity record, so it can be
+// individually revoked later from the "Active Sessions" list — see
+// middleware/auth.js, which checks this on every request.
+function generateToken(id, sessionId) {
+  const payload = sessionId ? { id, sessionId } : { id };
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30d' });
 }
 
 function genCompanyId() {
@@ -60,8 +66,16 @@ export async function register(req, res) {
       role: 'admin', // self-registered accounts are always the company admin
       onboarded: false
     });
+
+    // Created first so its _id can be embedded in the token (see generateToken).
+    const session = await LoginActivity.create({
+      userId: user._id,
+      ip: req.ip,
+      device: parseUserAgent(req.headers['user-agent'])
+    });
+
     res.status(201).json({
-      token: generateToken(user._id),
+      token: generateToken(user._id, session._id),
       user: user.toSafeObject()
     });
   } catch (err) {
@@ -96,10 +110,46 @@ export async function login(req, res) {
       });
     }
 
+    // Created first so its _id can be embedded in the token (see generateToken).
+    const session = await LoginActivity.create({
+      userId: user._id,
+      ip: req.ip,
+      device: parseUserAgent(req.headers['user-agent'])
+    });
+
     res.json({
-      token: generateToken(user._id),
+      token: generateToken(user._id, session._id),
       user: user.toSafeObject()
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+// GET /api/auth/login-activity  (most recent logins for the current user)
+export async function getLoginActivity(req, res) {
+  try {
+    const activity = await LoginActivity.find({ userId: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+    res.json({ activity, currentSessionId: req.sessionId || null });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+// PUT /api/auth/login-activity/:id/revoke  ("Log out" a specific device)
+// Scoped to req.user._id so nobody can revoke someone else's session.
+export async function revokeSession(req, res) {
+  try {
+    const session = await LoginActivity.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found.' });
+    }
+    session.revoked = true;
+    await session.save();
+    res.json({ message: 'That device has been logged out.' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -204,6 +254,38 @@ export async function setPassword(req, res) {
     await user.save();
 
     res.json({ message: 'Password set. You can now log in with your new password.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+// PUT /api/auth/change-password  (logged in — different from forgotPassword,
+// which is OTP-based for someone who can't remember their password at all)
+export async function changePassword(req, res) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required.' });
+    }
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters.' });
+    }
+    if (String(newPassword) === String(currentPassword)) {
+      return res.status(400).json({ message: 'New password must be different from your current password.' });
+    }
+
+    // req.user (set by the `protect` middleware) has the password field
+    // excluded for safety — fetch a fresh copy that includes it, just for
+    // this one comparison.
+    const user = await User.findById(req.user._id);
+    if (!user || !(await user.matchPassword(currentPassword))) {
+      return res.status(400).json({ message: 'Current password is incorrect.' });
+    }
+
+    user.password = newPassword; // pre-save hook hashes it
+    await user.save();
+
+    res.json({ message: 'Password changed successfully.' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -316,6 +398,7 @@ export async function updateProfile(req, res) {
       user.email = email;
     }
     if (avatar !== undefined) user.avatar = avatar;
+    if (req.body.marketingOptIn !== undefined) user.marketingOptIn = !!req.body.marketingOptIn;
     await user.save();
     res.json({ user: user.toSafeObject() });
   } catch (err) {

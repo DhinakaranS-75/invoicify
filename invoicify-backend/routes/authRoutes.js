@@ -2,9 +2,9 @@ import express from 'express';
 import {
   register, login, getMe, updateProfile, updateCompany,
   getTeam, addTeamMember, removeTeamMember, resendInvite,
-  forgotPassword, resetPassword, setPassword,
+  forgotPassword, resetPassword, setPassword, changePassword,
   getInvite, acceptInvite, deleteAccount,
-  sendEmailVerifyOtp, verifyEmailOtp
+  sendEmailVerifyOtp, verifyEmailOtp, getLoginActivity, revokeSession
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -22,6 +22,9 @@ router.post('/invite/:token/accept', acceptInvite); // accept it -> temp passwor
 // --- Authenticated ---
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
+router.put('/change-password', protect, changePassword);
+router.get('/login-activity', protect, getLoginActivity);
+router.put('/login-activity/:id/revoke', protect, revokeSession);
 router.post('/send-email-verify-otp', protect, sendEmailVerifyOtp);
 router.post('/verify-email-otp', protect, verifyEmailOtp);
 router.put('/company', protect, updateCompany);

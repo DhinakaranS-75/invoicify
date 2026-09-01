@@ -90,12 +90,16 @@ export default function InvoiceDocument({ data, template = 'classic', currency =
 
       <div className="inv-doc-totals-wrap">
         {hasBankDetails ? (
-          <div className="inv-doc-bank">
-            <div className="inv-doc-label">Bank Details</div>
-            {data.bankName && <div>Bank Name: {data.bankName}</div>}
-            {data.accountNumber && <div>Account Number: {data.accountNumber}</div>}
-            {data.ifsc && <div>IFSC Code: {data.ifsc}</div>}
-          </div>
+          <table className="inv-doc-bank-table">
+            <thead>
+              <tr><th colSpan={2}>Bank Details</th></tr>
+            </thead>
+            <tbody>
+              {data.bankName && <tr><td>Bank Name</td><td>{data.bankName}</td></tr>}
+              {data.accountNumber && <tr><td>Account Number</td><td>{data.accountNumber}</td></tr>}
+              {data.ifsc && <tr><td>IFSC Code</td><td>{data.ifsc}</td></tr>}
+            </tbody>
+          </table>
         ) : <div></div>}
         <div className="inv-doc-totals">
           <div className="inv-doc-totals-row"><span>Subtotal</span><span>{fmt(data.subtotal, currency)}</span></div>
