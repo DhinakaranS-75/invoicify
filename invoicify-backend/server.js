@@ -39,7 +39,9 @@ const allowedOrigin = (origin, callback) => {
     // the configured production frontend
     || origin === process.env.CLIENT_URL
     // any Vercel deployment (production + preview URLs)
-    || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+    || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)
+    // any devdom.in subdomain (invoice.devdom.in, api.devdom.in, etc.)
+    || /^https:\/\/([a-z0-9-]+\.)?devdom\.in$/i.test(origin);
   callback(null, ok);
 };
 app.use(cors({ origin: allowedOrigin, credentials: true }));
