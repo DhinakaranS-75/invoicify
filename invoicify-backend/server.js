@@ -11,6 +11,8 @@ import customerRoutes from './routes/customerRoutes.js';
 import itemRoutes from './routes/itemRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
 import cronRoutes from './routes/cronRoutes.js';
+import cron from 'node-cron';
+import { runMonthlyReportCheck } from './controllers/cronController.js';
 import reportsRoutes from './routes/reportsRoutes.js';
 
 // Load environment variables from .env
@@ -102,3 +104,19 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('   ✨  Ready to roll — happy invoicing!  🎉');
   console.log('');
 });
+
+// Runs every day at 10:30 AM IST. No-op except on the last day of the
+// month, when it emails each company's monthly CSV report — same logic
+// as the manual "Email Report" button uses, just automatic. Runs directly
+// on this server now that it's always-on, so no external cron-job.org
+// trigger is needed for this one.
+cron.schedule('30 10 * * *', async () => {
+  try {
+    const result = await runMonthlyReportCheck({});
+    if (result.sent > 0) {
+      console.log(`[InvoicifysPro] Monthly report cron: ${result.message} (sent: ${result.sent})`);
+    }
+  } catch (err) {
+    console.error('[InvoicifysPro] Monthly report cron failed:', err.message);
+  }
+}, { timezone: 'Asia/Kolkata' });
