@@ -185,6 +185,15 @@ export function DataProvider({ children }) {
   useEffect(() => {
     if (!currentUser) return undefined;
 
+    // Only enforce the 10-minute idle timeout in a regular browser tab.
+    // The installed app (PWA/TWA) relies on App Lock (PIN) instead — matches
+    // how apps like Zoho and Swipe Billing behave: strict timeout on the
+    // website, PIN-based quick unlock on the phone app, no forced full logout.
+    const isInstalledApp =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true; // iOS Safari "Add to Home Screen"
+    if (isInstalledApp) return undefined;
+
     lastActivityRef.current = Date.now();
     warningShownRef.current = false;
 
