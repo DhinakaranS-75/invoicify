@@ -161,8 +161,8 @@ export default function Home() {
       {/* Cash Flow */}
       <div className="panel">
         <div className="cf-header">
-          <h3 style={{ margin: 0 }}>Cash Flow</h3>
-          <select value={cashflowPeriod} onChange={(e) => setCashflowPeriod(e.target.value)}>{periodOptions}</select>
+          <h2 style={{ margin: 0 }}>Cash Flow</h2>
+          <select aria-label="Cash flow period" value={cashflowPeriod} onChange={(e) => setCashflowPeriod(e.target.value)}>{periodOptions}</select>
         </div>
         <div className="cf-summary">
           <div><span className="cf-dot" style={{ background: '#17b3a3' }}></span>Income <strong>{fmt(totalIncome, currency)}</strong></div>
@@ -175,8 +175,8 @@ export default function Home() {
       {/* Payment Method */}
       <div className="panel section-gap">
         <div className="cf-header">
-          <h3 style={{ margin: 0 }}>Income &amp; Expense by Payment Method</h3>
-          <select value={methodPeriod} onChange={(e) => setMethodPeriod(e.target.value)}>{periodOptions}</select>
+          <h2 style={{ margin: 0 }}>Income &amp; Expense by Payment Method</h2>
+          <select aria-label="Payment method chart period" value={methodPeriod} onChange={(e) => setMethodPeriod(e.target.value)}>{periodOptions}</select>
         </div>
         <ChartCanvas config={methodConfig} height={240} />
       </div>
@@ -188,7 +188,7 @@ export default function Home() {
 
       {/* Recent Invoices */}
       <div className="panel section-gap">
-        <h3>Recent Invoices</h3>
+        <h2>Recent Invoices</h2>
         <div className="saved-list">
           {invoices.length === 0
             ? <p className="empty-line" style={{ fontSize: '13px' }}>No invoices yet.</p>
@@ -220,7 +220,7 @@ function IncomePanel({ open, setOpen, incomes, addIncome, deleteIncome, currency
   return (
     <div className="panel section-gap">
       <div className="collapsible-header" onClick={() => setOpen((o) => !o)}>
-        <h3 style={{ margin: 0 }}>Add Income</h3>
+        <h2 style={{ margin: 0 }}>Add Income</h2>
         <i className={'fa-solid fa-chevron-down' + (open ? ' open' : '')}></i>
       </div>
       {open && (
@@ -257,5 +257,3 @@ function IncomePanel({ open, setOpen, incomes, addIncome, deleteIncome, currency
     </div>
   );
 }
-
-
