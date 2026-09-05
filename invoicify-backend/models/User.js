@@ -17,6 +17,7 @@ const companySchema = new mongoose.Schema({
   bankName: String,
   accountNumber: String,
   ifsc: String,
+  upiId: String,       // UPI VPA (e.g. yourname@okhdfcbank) — renders a scan-to-pay QR on invoices
   terms: String,       // default invoice terms & conditions
   logo: String,        // base64 data URL
   signature: String    // base64 data URL (company-wide signature)

@@ -162,6 +162,7 @@ export default function InvoiceForm({ editingId, onBack }) {
     fromName: from.name, fromAddr: from.address, fromPhone: from.phone, fromEmail: from.email,
     gst: company.gst || '', logo: company.logo || null,
     bankName: company.bankName, accountNumber: company.accountNumber, ifsc: company.ifsc,
+    upiId: company.upiId || '',
     toName: to.name, toAddr: to.address, toPhone: to.phone, toEmail: to.email, shipTo: to.shipping,
     items: totals.withAmt, subtotal: totals.subtotal, taxPct, taxAmt: totals.taxAmt,
     discPct: discountPct, discAmt: totals.discAmt, total: totals.total,

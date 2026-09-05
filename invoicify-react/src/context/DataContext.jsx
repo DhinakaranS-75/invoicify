@@ -36,6 +36,7 @@ export function DataProvider({ children }) {
   // Always alias Mongo _id -> id so currentUser.id is available everywhere.
   const setCurrentUser = (u) => setCurrentUserRaw(u && typeof u === 'object' ? withId(u) : u);
   const [invoices, setInvoices] = useState([]);
+  const [quotes, setQuotes] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [catalogItems, setCatalogItems] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -75,6 +76,20 @@ export function DataProvider({ children }) {
       setTeamMembers(withIds(teamRes?.team));
     } catch (err) {
       console.error('Failed to load data:', err.message);
+    }
+
+    // Quotes fetched separately, deliberately NOT part of the Promise.all
+    // above. A brand-new "quotes" MongoDB collection can be slow on its
+    // very first query ever (index build), and bundling it into the same
+    // Promise.all would freeze the ENTIRE dashboard at zero — invoices,
+    // customers, everything — until that one-time delay finishes. Fetching
+    // it on its own means only the Quotes page waits a moment longer the
+    // first time; nothing else is held hostage by it.
+    try {
+      const quo = await api.get('/api/quotes');
+      setQuotes(withIds(quo));
+    } catch (err) {
+      console.error('Failed to load quotes:', err.message);
     }
   }, []);
 
@@ -121,7 +136,7 @@ export function DataProvider({ children }) {
   const logout = useCallback(() => {
     setToken(null);
     setCurrentUser(null);
-    setInvoices([]); setCustomers([]); setCatalogItems([]); setTeamMembers([]);
+    setInvoices([]); setQuotes([]); setCustomers([]); setCatalogItems([]); setTeamMembers([]);
     setIdleCountdown(null);
     warningShownRef.current = false;
   }, []);
@@ -301,6 +316,42 @@ export function DataProvider({ children }) {
       .then(({ user }) => setCurrentUser(user)).catch(() => {});
   }, [invoices, currentUser]);
 
+  // ---- Quotes/Estimates ----
+  const addQuote = useCallback(async (quote) => {
+    const created = await api.post('/api/quotes', quote);
+    setQuotes((prev) => [...prev, withId(created)]);
+    return created;
+  }, []);
+
+  const updateQuote = useCallback(async (id, patch) => {
+    const updated = await api.put(`/api/quotes/${id}`, patch);
+    setQuotes((prev) => prev.map((q) => ((q._id === id || q.id === id) ? withId(updated) : q)));
+    return updated;
+  }, []);
+
+  const deleteQuote = useCallback(async (id) => {
+    await api.del(`/api/quotes/${id}`);
+    setQuotes((prev) => prev.filter((q) => q._id !== id && q.id !== id));
+  }, []);
+
+  // Turns an accepted quote into a real Draft invoice — reuses the same
+  // invoice-number sequence as "Create New Invoice" (bumped by addInvoice
+  // itself), and marks the quote as Converted with a link to the new invoice
+  // so the quote list shows what it became.
+  const convertQuoteToInvoice = useCallback(async (quoteId) => {
+    const q = quotes.find((x) => x._id === quoteId || x.id === quoteId);
+    if (!q) return null;
+    const invoiceObj = {
+      number: buildInvoiceNumber(currentUser?.invoiceNumberConfig || DEFAULT_INVOICE_NUMBER_CONFIG),
+      orderNumber: '', date: new Date().toISOString().slice(0, 10),
+      dueDate: q.validUntil || new Date().toISOString().slice(0, 10),
+      client: q.client, status: 'Draft', total: q.total, snapshot: q.snapshot, payments: []
+    };
+    const createdInvoice = await addInvoice(invoiceObj);
+    await updateQuote(q._id || q.id, { status: 'Converted', convertedInvoiceId: createdInvoice._id || createdInvoice.id });
+    return createdInvoice;
+  }, [quotes, currentUser, addInvoice, updateQuote]);
+
   // ---- Customers ----
   const addCustomer = useCallback(async (c) => {
     const created = await api.post('/api/customers', c);
@@ -379,6 +430,7 @@ export function DataProvider({ children }) {
     currentUser, setCurrentUser, updateCurrentUser,
     booting,
     invoices, addInvoice, updateInvoice, deleteInvoice, duplicateInvoice,
+    quotes, addQuote, updateQuote, deleteQuote, convertQuoteToInvoice,
     customers, addCustomer, updateCustomer, deleteCustomers,
     catalogItems, addItem, updateItem, deleteItems,
     incomes, addIncome, deleteIncome,

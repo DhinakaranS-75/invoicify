@@ -13,6 +13,7 @@ import Home from '../pages/Home';
 // Everything else only loads its code the moment the person actually visits
 // that page, instead of all of it being bundled into the initial download.
 const Invoices = lazy(() => import('../pages/Invoices'));
+const Quotes = lazy(() => import('../pages/Quotes'));
 const Items = lazy(() => import('../pages/Items'));
 const Customers = lazy(() => import('../pages/Customers'));
 const Reports = lazy(() => import('../pages/Reports'));
@@ -22,12 +23,12 @@ const Settings = lazy(() => import('../pages/Settings'));
 
 // Maps our internal page keys to URL paths
 const PAGE_PATHS = {
-  home: '/home', item: '/items', invoice: '/invoices',
+  home: '/home', item: '/items', invoice: '/invoices', quote: '/quotes',
   customer: '/customers', reports: '/reports', expense: '/expenses',
   more: '/more', profile: '/settings'
 };
 const PATH_TITLES = {
-  '/home': '', '/items': 'Items', '/invoices': 'Invoices',
+  '/home': '', '/items': 'Items', '/invoices': 'Invoices', '/quotes': 'Quotes',
   '/customers': 'Customers', '/reports': 'Reports', '/expenses': 'Expenses',
   '/more': 'More', '/settings': 'Settings'
 };
@@ -103,6 +104,7 @@ export default function AppShell() {
     if (p === 'reports' && !can('viewReports')) return;
     if (p === 'item' && !can('manageItems')) return;
     if (p === 'customer' && !can('manageCustomers')) return;
+    if (p === 'quote' && !can('createInvoice')) return;
     setSidebarOpen(false);
     requestNav(() => navigate(PAGE_PATHS[p] || '/home'));
   };
@@ -117,6 +119,7 @@ export default function AppShell() {
     { key: 'home', path: '/home', icon: 'fa-house', label: 'Home', show: true },
     { key: 'item', path: '/items', icon: 'fa-box', label: 'Items', show: can('manageItems') },
     { key: 'invoice', path: '/invoices', icon: 'fa-file-invoice', label: 'Invoices', show: true },
+    { key: 'quote', path: '/quotes', icon: 'fa-file-lines', label: 'Quotes', show: can('createInvoice') },
     { key: 'customer', path: '/customers', icon: 'fa-users', label: 'Customers', show: can('manageCustomers') },
     { key: 'reports', path: '/reports', icon: 'fa-chart-pie', label: 'Reports', show: can('viewReports') },
     { key: 'expense', path: '/expenses', icon: 'fa-wallet', label: 'Expenses', show: true }
@@ -268,6 +271,7 @@ export default function AppShell() {
             <Routes>
               <Route path="/home" element={<Home go={go} />} />
               <Route path="/invoices" element={<Invoices />} />
+              <Route path="/quotes" element={can('createInvoice') ? <Quotes /> : <Navigate to="/home" replace />} />
               <Route path="/items" element={can('manageItems') ? <Items /> : <Navigate to="/home" replace />} />
               <Route path="/customers" element={can('manageCustomers') ? <Customers /> : <Navigate to="/home" replace />} />
               <Route path="/reports" element={can('viewReports') ? <Reports /> : <Navigate to="/home" replace />} />

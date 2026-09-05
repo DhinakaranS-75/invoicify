@@ -294,6 +294,58 @@ export async function sendAccountDeleted(email, name, dataDeleted) {
   console.log(`[InvoicifysPro] Account-deleted email sent to ${email}`);
 }
 
+// Emails a single invoice as a PDF attachment. `pdfBuffer` is the raw PDF
+// bytes (a Node Buffer) — the frontend renders the invoice to a PDF blob
+// client-side (same html2pdf.js path used for download/share) and posts the
+// base64 up to the controller, which decodes it into a Buffer before this
+// function ever sees it.
+export async function sendInvoicePdf({ email, name, companyName, invoiceNumber, totalFormatted, pdfBuffer }) {
+  const subject = `Invoice ${invoiceNumber} from ${companyName}`;
+  const text = `Hi ${name || 'there'}, please find attached invoice ${invoiceNumber}${totalFormatted ? ` for ${totalFormatted}` : ''} from ${companyName}.`;
+  const html = shell(`
+        <div style="font-size:15px;font-weight:700;color:#2b2f77;margin:18px 0 6px;">Invoice ${invoiceNumber} 📄</div>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 16px;">Hi ${name || 'there'}, please find attached invoice <strong>${invoiceNumber}</strong>${totalFormatted ? ` for <strong>${totalFormatted}</strong>` : ''} from <strong>${companyName}</strong>.</p>`);
+
+  const attachmentName = `Invoice-${invoiceNumber}.pdf`;
+
+  if (!isConfigured()) {
+    console.log(`[InvoicifysPro] Invoice PDF for ${email} not sent (email not configured).`);
+    throw new Error('Email is not configured on this server.');
+  }
+  await sendMail({
+    to: email,
+    subject,
+    text,
+    html,
+    attachments: [{ filename: attachmentName, content: pdfBuffer, contentType: 'application/pdf' }]
+  });
+  console.log(`[InvoicifysPro] Invoice ${invoiceNumber} emailed to ${email}`);
+}
+
+// Same as sendInvoicePdf but for a quote/estimate PDF.
+export async function sendQuotePdf({ email, name, companyName, quoteNumber, totalFormatted, pdfBuffer }) {
+  const subject = `Quote ${quoteNumber} from ${companyName}`;
+  const text = `Hi ${name || 'there'}, please find attached quote ${quoteNumber}${totalFormatted ? ` for ${totalFormatted}` : ''} from ${companyName}.`;
+  const html = shell(`
+        <div style="font-size:15px;font-weight:700;color:#2b2f77;margin:18px 0 6px;">Quote ${quoteNumber} 📄</div>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 16px;">Hi ${name || 'there'}, please find attached quote <strong>${quoteNumber}</strong>${totalFormatted ? ` for <strong>${totalFormatted}</strong>` : ''} from <strong>${companyName}</strong>.</p>`);
+
+  const attachmentName = `Quote-${quoteNumber}.pdf`;
+
+  if (!isConfigured()) {
+    console.log(`[InvoicifysPro] Quote PDF for ${email} not sent (email not configured).`);
+    throw new Error('Email is not configured on this server.');
+  }
+  await sendMail({
+    to: email,
+    subject,
+    text,
+    html,
+    attachments: [{ filename: attachmentName, content: pdfBuffer, contentType: 'application/pdf' }]
+  });
+  console.log(`[InvoicifysPro] Quote ${quoteNumber} emailed to ${email}`);
+}
+
 export async function sendReportEmail({ email, name, companyName, label, csvContent }) {
   const subject = `Your ${label} report — ${companyName}`;
   const text = `Hi ${name || 'there'}, attached is your InvoicifysPro business report for ${label}. It covers all invoices and expenses recorded in that period.`;

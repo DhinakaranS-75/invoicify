@@ -1,4 +1,5 @@
 import Invoice from '../models/Invoice.js';
+import { sendInvoicePdf } from '../utils/mailer.js';
 
 // Returns an existing invoice in the same company that already uses this
 // number (case-insensitive, trimmed), or null. `excludeId` skips the invoice
@@ -94,6 +95,39 @@ export async function updateInvoice(req, res) {
     Object.assign(invoice, req.body);
     await invoice.save();
     res.json(invoice);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+// POST /api/invoices/:id/email
+// Body: { recipientEmail, pdfBase64 } — pdfBase64 is the invoice PDF rendered
+// client-side (same html2pdf.js path as Download/Share), base64-encoded with
+// no data-URL prefix. Scoped to the requester's companyId like every other
+// invoice route, so one company can't email another's invoice.
+export async function emailInvoicePdf(req, res) {
+  try {
+    const { recipientEmail, pdfBase64 } = req.body;
+    if (!recipientEmail || !pdfBase64) {
+      return res.status(400).json({ message: 'recipientEmail and pdfBase64 are required.' });
+    }
+    const invoice = await Invoice.findOne({ _id: req.params.id, companyId: req.user.companyId });
+    if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
+
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+    const companyName = req.user.company?.name || 'InvoicifysPro';
+    const totalFormatted = invoice.total != null ? `${req.user.company?.currency || 'INR'} ${invoice.total.toFixed(2)}` : null;
+
+    await sendInvoicePdf({
+      email: recipientEmail,
+      name: invoice.client,
+      companyName,
+      invoiceNumber: invoice.number,
+      totalFormatted,
+      pdfBuffer
+    });
+
+    res.json({ message: 'Invoice emailed successfully.' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

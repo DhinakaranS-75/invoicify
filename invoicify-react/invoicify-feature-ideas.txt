@@ -98,6 +98,19 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
     |                       | /api/cron/send-monthly-reports?key=.. |        |        |          |
     |                       | Keep the manual button too — both can |        |        |          |
     |                       | coexist (auto month-end + on-demand). |        |        |          |
+ 20 | Security headers      | helmet package -> CSP, HSTS,          | Low    | High   | MUST     | ❌
+    | (helmet)              | X-Frame-Options (clickjacking), COOP  |        |        |          |
+    |                       | headers auto-added. Fixes the CSP/    |        |        |          |
+    |                       | HSTS/COOP/clickjacking gaps flagged   |        |        |          |
+    |                       | in Lighthouse's Best Practices audit. |        |        |          |
+ 21 | Rate limiting         | express-rate-limit on login, OTP      | Low    | High   | MUST     | ❌
+    | (auth routes)         | verify, forgot-password routes (e.g.  |        |        |          |
+    |                       | 5 tries / 15 min). Blocks brute-force |        |        |          |
+    |                       | password/OTP guessing bots.           |        |        |          |
+ 22 | NoSQL injection guard | express-mongo-sanitize middleware —   | Low    | Medium | Should   | ❌
+    |                       | strips $ / . operators from req.body/ |        |        |          |
+    |                       | query/params so a crafted input can't |        |        |          |
+    |                       | manipulate MongoDB queries.           |        |        |          |
 ------------------------------------------------------------------
 
 ==================================================================
@@ -126,6 +139,47 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
  Note: ellame panna vendam. Priority paathu, one by one.
        Recurring invoices + full GST reports = periya impact
        aana periya vela -> public pona piragu, users kettaa pannalaam.
+------------------------------------------------------------------
+
+
+==================================================================
+   SECURITY CHECKLIST — "website hack aaguma?" kelvikku badil
+==================================================================
+Context: full checklist discussed once, security worry ketta pothu.
+No code implemented yet as of this note — #20/#21/#22 mele table-la
+irukku, adhu than idhula code-level fix panna vendiyathu.
+
+--- A. CODE-LEVEL (see #20, #21, #22 in main table above) ---
+ [ ] helmet package                — CSP, HSTS, X-Frame-Options,
+                                      COOP headers auto-add
+ [ ] express-rate-limit            — login/OTP/forgot-password
+                                      brute-force protect (5 tries/
+                                      15 min madhiri)
+ [ ] express-mongo-sanitize        — NoSQL injection guard
+
+--- B. INFRA / CONFIG (dashboard-la pannanum, code illa) ---
+ [ ] MongoDB Atlas -> Network Access -> IP whitelist check pannu.
+     0.0.0.0/0 (anywhere) open-ah irundha, athu tighten pannu.
+     Self-hosted backend dynamic IP problem irundha, VPN/static IP
+     option paaru.
+ [ ] GitHub repo history-la .env commit aayirukka nu check pannu
+     (git log --all --full-history -- .env). Aagirundha, secret
+     rotate pannanum (JWT_SECRET, BREVO_API_KEY, Mongo password
+     ellam maathanum) — .gitignore-la irundha pothaathu, already
+     commit aana thing history-la irundhu poagaathu.
+ [ ] Windows laptop (self-hosted backend) firewall ON-ah irukka,
+     Windows Update automatic-ah irukka confirm pannu. Laptop
+     compromise aana, adhu backend-um vachirukura data-um risk.
+
+--- C. ONGOING HABITS (one-time fix illa, periodic) ---
+ [ ] npm audit — every few months, backend + frontend rendulayum
+     run pannu, vulnerable packages update pannu
+ [ ] MongoDB Atlas automatic backup ON-ah irukka confirm pannu
+ [ ] Admin account password periodic-ah change pannu — customer
+     GST/payment data irukura app-ku extra careful-ah irukkanum
+
+Note: 2FA/Authenticator app already parked (see earlier "on hold"
+note) — adhuvum idha vachi relate aagum, revisit pannalaam.
 ------------------------------------------------------------------
 
 

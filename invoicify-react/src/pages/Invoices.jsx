@@ -6,6 +6,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { fmt, statusBadgeClass, paymentMethodIcon } from '../utils/format';
 import InvoiceForm from '../components/InvoiceForm';
 import InvoiceDetail from '../components/InvoiceDetail';
+import { exportInvoicesToCsv } from '../utils/csvExport';
 
 function invoicePaymentMethod(inv) {
   if (!inv.payments || !inv.payments.length) return '';
@@ -13,7 +14,7 @@ function invoicePaymentMethod(inv) {
 }
 
 export default function Invoices() {
-  const { invoices, duplicateInvoice, deleteInvoice, currency } = useData();
+  const { invoices, customers, duplicateInvoice, deleteInvoice, currency } = useData();
   const { toast } = useToast();
   const { can } = usePermissions();
 
@@ -48,6 +49,19 @@ export default function Invoices() {
     [...selected].forEach((id) => deleteInvoice(id));
     toast('Invoices deleted', `${selected.size} removed.`, 'delete');
     setSelected(new Set());
+  };
+
+  // Exports whatever the current search/status filter is showing — matches
+  // what's on screen, which is what an accountant asking "send me this
+  // month's Paid invoices" would expect.
+  const exportCsv = () => {
+    if (visibleInvoices.length === 0) {
+      toast('Nothing to export', 'No invoices match the current filters.', 'error');
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    exportInvoicesToCsv(visibleInvoices, customers, `invoices-${today}`);
+    toast('CSV downloaded', `${visibleInvoices.length} invoice${visibleInvoices.length > 1 ? 's' : ''} exported.`);
   };
 
   // ---- Search --------------------------------------------------------
@@ -119,6 +133,10 @@ export default function Invoices() {
               <i className="fa-solid fa-pen"></i> Edit
             </button>
           )}
+
+          <button className="btn btn-small btn-outline hide-mobile" onClick={exportCsv} title="Export as CSV (opens in Excel/Google Sheets)">
+            <i className="fa-solid fa-file-csv"></i> Export CSV
+          </button>
 
       {can('createInvoice') && (
             <button className="btn btn-small btn-orange hide-mobile" onClick={openNew}><i className="fa-solid fa-plus"></i> Create New Invoice</button>

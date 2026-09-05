@@ -549,7 +549,8 @@ function CompanyTab() {
     name: c.name || '', email: c.email || '', contact: c.contact || '', contactCode: c.contactCode || '+91',
     address: c.address || '', state: c.state || '',
     country: c.country || 'India', gst: c.gst || '', bankName: c.bankName || '',
-    accountNumber: c.accountNumber || '', ifsc: c.ifsc || '', terms: c.terms || '', logo: c.logo || null
+    accountNumber: c.accountNumber || '', ifsc: c.ifsc || '', upiId: c.upiId || '',
+    terms: c.terms || '', logo: c.logo || null
   });
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
@@ -627,6 +628,12 @@ function CompanyTab() {
             <div className="field-sm"><label>Account Number</label><input value={f.accountNumber} onChange={(e) => setF((p) => ({ ...p, accountNumber: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="Type account number" inputMode="numeric" /></div>
           </div>
           <div className="field-sm"><label>IFSC Code</label><input value={f.ifsc} onChange={set('ifsc')} placeholder="Type IFSC code" /></div>
+        </div>
+
+        <div className="section-gap">
+          <h3>UPI Payment</h3>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '-4px 0 12px' }}>Optional. Adds a scan-to-pay QR code to your invoices so customers can pay instantly from any UPI app.</p>
+          <div className="field-sm"><label>UPI ID (VPA)</label><input value={f.upiId} onChange={set('upiId')} placeholder="yourname@okhdfcbank" /></div>
         </div>
 
         <div className="section-gap">

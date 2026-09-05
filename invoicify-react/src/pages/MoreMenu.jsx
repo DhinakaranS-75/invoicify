@@ -5,6 +5,7 @@
 // Per-link color + one-line description, keyed by nav link `key`. Colors
 // pull from the same palette used across the app's dashboard cards.
 const LINK_META = {
+  quote: { color: 'var(--orange)', sub: 'Send estimates & quotes' },
   customer: { color: 'var(--teal)', sub: 'Manage your customer list' },
   reports: { color: 'var(--pink)', sub: 'Income, expenses & profit' },
   expense: { color: 'var(--danger)', sub: 'Track what you spend' },

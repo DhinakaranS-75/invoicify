@@ -7,6 +7,7 @@ import { connectDB } from './config/db.js';
 // Route imports
 import authRoutes from './routes/authRoutes.js';
 import invoiceRoutes from './routes/invoiceRoutes.js';
+import quoteRoutes from './routes/quoteRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
 import itemRoutes from './routes/itemRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
@@ -58,6 +59,7 @@ app.get('/', (req, res) => {
 // ---- API routes ----
 app.use('/api/auth', authRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/quotes', quoteRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/expenses', expenseRoutes);

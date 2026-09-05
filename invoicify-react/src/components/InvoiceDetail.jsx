@@ -6,7 +6,8 @@ import { fmt, statusBadgeClass } from '../utils/format';
 import InvoiceDocument, { invoiceToDocData } from './InvoiceDocument';
 import ScaleToFit from './ScaleToFit';
 import PrintPortal from './PrintPortal';
-import { exportElementToPDF, shareElementAsPDF } from '../utils/pdf';
+import { exportElementToPDF, shareElementAsPDF, getElementPdfBase64 } from '../utils/pdf';
+import { api } from '../utils/api';
 
 function paidTotal(inv) {
   return (inv.payments || []).reduce((s, p) => s + p.amount, 0);
@@ -21,6 +22,8 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
   const inv = invoices.find((i) => i.id === invoiceId);
   const [payDialog, setPayDialog] = useState(false);
   const [mobilePreview, setMobilePreview] = useState(false);
+  const [emailDialog, setEmailDialog] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const previewRef = useRef(null);
 
   if (!inv) {
@@ -77,6 +80,22 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
     toast('Payment removed', 'The payment entry was deleted.', 'delete');
   };
 
+  const emailInvoice = async (recipientEmail) => {
+    const el = previewRef.current?.querySelector('.inv-doc');
+    if (!el) return;
+    setEmailSending(true);
+    try {
+      const pdfBase64 = await getElementPdfBase64(el);
+      await api.post(`/api/invoices/${inv._id || inv.id}/email`, { recipientEmail, pdfBase64 });
+      toast('Invoice emailed', `Sent to ${recipientEmail}.`);
+      setEmailDialog(false);
+    } catch (err) {
+      toast('Could not send email', err.message || 'Please try again.', 'error');
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   const downloadPDF = () => {
     const el = previewRef.current?.querySelector('.inv-doc');
     if (el) { exportElementToPDF(el, inv.number || 'invoice'); toast('Download started', 'Your invoice PDF is being generated.'); }
@@ -112,6 +131,7 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
         {can('editInvoice') && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => onEdit(inv.id)} title="Edit"><i className="fa-solid fa-pen"></i><span className="btn-label"> Edit</span></button>}
         <button className="btn btn-small btn-outline detail-action-btn" onClick={downloadPDF} title="Download PDF"><i className="fa-solid fa-download"></i><span className="btn-label"> Download PDF</span></button>
         <button className="btn btn-small btn-outline detail-action-btn" onClick={shareInvoice} title="Share Invoice"><i className="fa-solid fa-share-nodes"></i><span className="btn-label"> Share Invoice</span></button>
+        <button className="btn btn-small btn-outline detail-action-btn" onClick={() => setEmailDialog(true)} title="Email PDF to Customer"><i className="fa-solid fa-envelope"></i><span className="btn-label"> Email PDF</span></button>
         <button className="btn btn-small btn-outline detail-action-btn" onClick={() => window.print()} title="Print"><i className="fa-solid fa-print"></i><span className="btn-label"> Print</span></button>
         <button className="btn btn-small btn-navy detail-preview-btn show-mobile" onClick={() => setMobilePreview(true)}><i className="fa-solid fa-eye"></i> Preview Invoice</button>
       </div>
@@ -205,6 +225,16 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
       {/* Payment dialog */}
       {payDialog && <PaymentDialog balance={balance} currency={currency} onSave={recordPayment} onClose={() => setPayDialog(false)} />}
 
+      {/* Email PDF dialog */}
+      {emailDialog && (
+        <EmailPdfDialog
+          defaultEmail={inv.snapshot?.toEmail || ''}
+          sending={emailSending}
+          onSend={emailInvoice}
+          onClose={() => setEmailDialog(false)}
+        />
+      )}
+
       {/* Mobile full-screen preview */}
       {mobilePreview && (
         <div className="mobile-preview-overlay show">
@@ -258,6 +288,39 @@ function PaymentDialog({ balance, currency, onSave, onClose }) {
         <div className="confirm-actions" style={{ flexDirection: 'row', marginTop: '10px' }}>
           <button className="btn btn-small btn-teal" onClick={save}><i className="fa-solid fa-check"></i> Save Payment</button>
           <button className="btn btn-small btn-outline" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmailPdfDialog({ defaultEmail, sending, onSend, onClose }) {
+  const [email, setEmail] = useState(defaultEmail);
+  const [invalid, setInvalid] = useState(false);
+
+  const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
+  const send = () => {
+    if (!validEmail(email.trim())) { setInvalid(true); return; }
+    onSend(email.trim());
+  };
+
+  return (
+    <div className="confirm-overlay show">
+      <div className="confirm-box" style={{ maxWidth: '420px', textAlign: 'left' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+          <div className="confirm-icon" style={{ margin: 0, width: '44px', height: '44px', fontSize: '18px' }}><i className="fa-solid fa-envelope"></i></div>
+          <h3 style={{ margin: 0 }}>Email Invoice PDF</h3>
+        </div>
+        <p style={{ margin: '10px 0 16px' }}>The invoice will be rendered as a PDF and emailed as an attachment.</p>
+        <div className="field-sm"><label>Recipient Email</label>
+          <input type="email" value={email} className={invalid ? 'invalid' : ''} onChange={(e) => { setEmail(e.target.value); setInvalid(false); }} placeholder="customer@email.com" />
+        </div>
+        <div className="confirm-actions" style={{ flexDirection: 'row', marginTop: '10px' }}>
+          <button className="btn btn-small btn-teal" onClick={send} disabled={sending}>
+            {sending ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Sending…</> : <><i className="fa-solid fa-paper-plane"></i> Send</>}
+          </button>
+          <button className="btn btn-small btn-outline" onClick={onClose} disabled={sending}>Cancel</button>
         </div>
       </div>
     </div>

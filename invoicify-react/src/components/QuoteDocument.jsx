@@ -1,38 +1,29 @@
 import { fmt, numberToWords } from '../utils/format';
 
 const STAMP_CLASS = {
-  Paid: 'stamp-paid', Unpaid: 'stamp-unpaid', Overdue: 'stamp-overdue',
-  Sent: 'stamp-sent', Draft: 'stamp-draft'
+  Accepted: 'stamp-accepted', Rejected: 'stamp-rejected', Expired: 'stamp-expired',
+  Converted: 'stamp-converted', Sent: 'stamp-sent', Draft: 'stamp-draft'
 };
 
 /**
- * Renders the invoice document. `data` mirrors the shape built in the vanilla app.
- * `template` selects one of the 9 CSS template variants.
- * `currency` is the currency code for formatting.
+ * Renders the quote/estimate document. Deliberately reuses the exact same
+ * `.inv-doc*` class names as InvoiceDocument so all 9 existing CSS template
+ * variants apply automatically — no new template CSS needed. Only the
+ * labels differ (QUOTE vs INVOICE, Valid Until vs Due Date), and there's no
+ * bank/UPI/payment section since a quote is nothing to pay yet.
  */
-export default function InvoiceDocument({ data, template = 'classic', currency = 'INR' }) {
-  const status = data.status || 'Unpaid';
-  const stampClass = STAMP_CLASS[status] || 'stamp-unpaid';
+export default function QuoteDocument({ data, template = 'classic', currency = 'INR' }) {
+  const status = data.status || 'Draft';
+  const stampClass = STAMP_CLASS[status] || 'stamp-draft';
   const amountWords = numberToWords(data.total);
-  const hasBankDetails = data.bankName || data.accountNumber || data.ifsc;
   const contactLine = [data.fromEmail, data.fromPhone].filter(Boolean).join(' / ') || '\u2014';
-
-  // UPI scan-to-pay QR — built from a upi:// deep link, rendered via a free
-  // QR-image service (no extra npm dependency, and the service supports CORS
-  // so html2canvas can still capture it into the exported/shared PDF).
-  const upiId = (data.upiId || '').trim();
-  let upiQrUrl = null;
-  if (upiId) {
-    const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(data.fromName || 'Merchant')}&am=${encodeURIComponent((data.total || 0).toFixed(2))}&cu=INR&tn=${encodeURIComponent('Invoice ' + (data.invNumber || ''))}`;
-    upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(upiLink)}`;
-  }
 
   return (
     <div className={`inv-doc inv-doc-${template || 'classic'}`}>
       <div className={`inv-doc-stamp ${stampClass}`}>{status.toUpperCase()}</div>
 
       <div className="inv-doc-top">
-        <div className="inv-doc-title">INVOICE</div>
+        <div className="inv-doc-title">QUOTE</div>
         <div className="inv-doc-logo">
           {data.logo ? <img src={data.logo} alt="logo" /> : 'LOGO'}
         </div>
@@ -40,10 +31,9 @@ export default function InvoiceDocument({ data, template = 'classic', currency =
 
       <div className="inv-doc-meta-row">
         <div className="inv-doc-meta-left">
-          <div><strong>Invoice Number:</strong> #{data.invNumber}</div>
-          <div><strong>Date:</strong> {data.invDate}</div>
-          <div><strong>Due Date:</strong> {data.invDue}</div>
-          <div><strong>Order Number:</strong> {data.orderNumber || '\u2014'}</div>
+          <div><strong>Quote Number:</strong> #{data.quoteNumber}</div>
+          <div><strong>Date:</strong> {data.quoteDate}</div>
+          <div><strong>Valid Until:</strong> {data.validUntil}</div>
         </div>
         <div className="inv-doc-meta-right">
           <div><strong>{data.fromName}</strong></div>
@@ -60,7 +50,7 @@ export default function InvoiceDocument({ data, template = 'classic', currency =
 
       <div className="inv-doc-addr-row">
         <div className="inv-doc-addr-box">
-          <div className="inv-doc-label">Bill To</div>
+          <div className="inv-doc-label">Quote For</div>
           <div><strong>{data.toName}</strong></div>
           {data.toAddr ? <div style={{ whiteSpace: 'pre-line' }}>{data.toAddr}</div> : null}
           {data.toPhone ? <div>{data.toPhone}</div> : null}
@@ -99,28 +89,7 @@ export default function InvoiceDocument({ data, template = 'classic', currency =
       </table>
 
       <div className="inv-doc-totals-wrap">
-        {(hasBankDetails || upiQrUrl) ? (
-          <div className="inv-doc-left-extras">
-            {hasBankDetails && (
-              <table className="inv-doc-bank-table">
-                <thead>
-                  <tr><th colSpan={2}>Bank Details</th></tr>
-                </thead>
-                <tbody>
-                  {data.bankName && <tr><td>Bank Name</td><td>{data.bankName}</td></tr>}
-                  {data.accountNumber && <tr><td>Account Number</td><td>{data.accountNumber}</td></tr>}
-                  {data.ifsc && <tr><td>IFSC Code</td><td>{data.ifsc}</td></tr>}
-                </tbody>
-              </table>
-            )}
-            {upiQrUrl && (
-              <div className="inv-doc-upi-box">
-                <img src={upiQrUrl} alt="UPI QR code" crossOrigin="anonymous" />
-                <div>Scan to Pay via UPI</div>
-              </div>
-            )}
-          </div>
-        ) : <div></div>}
+        <div></div>
         <div className="inv-doc-totals">
           <div className="inv-doc-totals-row"><span>Subtotal</span><span>{fmt(data.subtotal, currency)}</span></div>
           <div className="inv-doc-totals-row"><span>Tax ({data.taxPct}%)</span><span>{fmt(data.taxAmt, currency)}</span></div>
@@ -136,7 +105,7 @@ export default function InvoiceDocument({ data, template = 'classic', currency =
       <div className="inv-doc-signature-row">
         <div className="inv-doc-terms">
           <div className="inv-doc-label">Terms &amp; Notes</div>
-          <div style={{ whiteSpace: 'pre-line' }}>{data.notes || 'Thank you for your business.'}</div>
+          <div style={{ whiteSpace: 'pre-line' }}>{data.notes || 'This quote is valid until the date shown above.'}</div>
           <div style={{ marginTop: '10px', color: 'var(--muted)', fontSize: '11px' }}>For any questions: {contactLine}</div>
         </div>
         <div className="inv-doc-signature">
@@ -148,18 +117,18 @@ export default function InvoiceDocument({ data, template = 'classic', currency =
       </div>
 
       <div className="inv-doc-disclaimer">
-        {data.signature ? '' : '*This is an electronically generated invoice and no signature is required.'}
+        {data.signature ? '' : '*This is an electronically generated quote and no signature is required.'}
       </div>
     </div>
   );
 }
 
 /**
- * Builds the `data` object for InvoiceDocument from an invoice snapshot + company.
- * Mirrors buildInvoicePreviewHtml from the vanilla app.
+ * Builds the `data` object for QuoteDocument from a quote snapshot + company.
+ * Mirrors invoiceToDocData from InvoiceDocument.jsx.
  */
-export function invoiceToDocData(inv, company, signature) {
-  const s = inv.snapshot || {};
+export function quoteToDocData(q, company, signature) {
+  const s = q.snapshot || {};
   const items = (s.items || []).map((li) => ({
     name: li.name, description: li.description, hsn: li.hsn,
     qty: li.qty, rate: li.rate, amount: (li.qty || 0) * (li.rate || 0)
@@ -171,15 +140,13 @@ export function invoiceToDocData(inv, company, signature) {
   const discAmt = subtotal * discPct / 100;
   const total = subtotal + taxAmt - discAmt;
   return {
-    invNumber: inv.number, invDate: inv.date, invDue: inv.dueDate,
-    orderNumber: inv.orderNumber, subject: s.subject, status: inv.status,
+    quoteNumber: q.number, quoteDate: q.date, validUntil: q.validUntil,
+    subject: s.subject, status: q.status,
     fromName: company?.name || '', fromAddr: company?.address || '',
     fromPhone: company?.contact ? (company.contactCode || '') + ' ' + company.contact : '',
     fromEmail: company?.email || '', gst: company?.gst || '',
     logo: company?.logo || null,
-    bankName: company?.bankName, accountNumber: company?.accountNumber, ifsc: company?.ifsc,
-    upiId: company?.upiId || '',
-    toName: inv.client, toAddr: s.toAddr, toPhone: s.toPhone, toEmail: s.toEmail,
+    toName: q.client, toAddr: s.toAddr, toPhone: s.toPhone, toEmail: s.toEmail,
     shipTo: s.shipTo,
     items, subtotal, taxPct, taxAmt, discPct, discAmt, total,
     notes: s.notes, signature: signature || s.signature || null

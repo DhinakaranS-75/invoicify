@@ -21,6 +21,25 @@ export function exportElementToPDF(element, filename) {
 }
 
 /**
+ * Renders a DOM element (the invoice document) to a PDF and returns it as a
+ * plain base64 string (no data-URL prefix) — ready to POST to a backend
+ * endpoint that expects raw base64, e.g. for emailing as an attachment.
+ */
+export async function getElementPdfBase64(element) {
+  if (!element) return null;
+  const opt = {
+    margin: 6,
+    image: { type: 'jpeg', quality: 0.92 },
+    html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  // jsPDF's own output('datauristring') gives us base64 directly without an
+  // extra Blob->FileReader round trip.
+  const dataUri = await html2pdf().set(opt).from(element).outputPdf('datauristring');
+  return dataUri.split(',')[1] || dataUri.split('base64,')[1];
+}
+
+/**
  * Shares a DOM element (the invoice document) as a PDF via the device's
  * native share sheet — WhatsApp, Gmail/Email, Drive, Bluetooth, whatever the
  * person has installed — with the actual PDF file attached. Falls back to a
