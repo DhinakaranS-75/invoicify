@@ -5,15 +5,19 @@
 Already done: auth ✅, team invite ✅, invoices ✅, customers ✅, items ✅,
 reports ✅, payments ✅, PWA ✅, dark mode ✅, search ✅, filters ✅,
 status colors ✅, duplicate check ✅, pincode auto-fill ✅, landing page ✅,
-expense tracking ✅, dashboard analytics ✅, 9 invoice templates ✅.
+expense tracking ✅, dashboard analytics ✅, 9 invoice templates ✅,
+UPI QR ✅, CSV export ✅, PDF email send ✅, Quotes/Estimates ✅.
 
 Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
 
 ------------------------------------------------------------------
  #  | FEATURE               | ENNA                                  | EFFORT | IMPACT | PRIORITY | STATUS
 ------------------------------------------------------------------
- 1  | PDF email send        | "Send" button -> customer email-ku    | Medium | High   | MUST     | ❌
+ 1  | PDF email send        | "Send" button -> customer email-ku    | Medium | High   | MUST     | ✅
     |                       | PDF neradiya anupurathu               |        |        |          |
+    |                       | DONE: InvoiceDetail "Email PDF" button|        |        |          |
+    |                       | -> backend /api/invoices/:id/email    |        |        |          |
+    |                       | (Brevo attachment via mailer.js)       |        |        |          |
  2  | Recurring invoices    | Monthly rent/subscription auto        | High   | High   | MUST     | ❌
     |                       | generate                              |        |        |          |
  3  | Payment reminders     | Overdue-ku auto email reminder        | Medium | High   | MUST     | ❌
@@ -48,12 +52,17 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
  7  | Expense tracking      | Vaangina bills-um track (accounting)  | High   | Medium | Later    | ✅
     |                       | (own dashboard page, cloud-saved,     |        |        |          |
     |                       | Purchases/COGS category added)        |        |        |          |
- 8  | Quotes/Estimates      | Quotation -> aprm invoice-a convert   | Medium | High   | Nice     | ❌
+ 8  | Quotes/Estimates      | Quotation -> aprm invoice-a convert   | Medium | High   | Nice     | ✅
+    |                       | DONE: full Quote model/CRUD, Quotes   |        |        |          |
+    |                       | page + form + detail, "Convert to     |        |        |          |
+    |                       | Invoice" button (Accepted status)     |        |        |          |
  9  | Customer statement    | Oru customer ellaa invoice + balance  | Low    | Medium | Nice     | ❌
  10 | Bulk actions          | Multi-select -> bulk send/delete/export | Low  | Medium | Nice     | ⚠️
     |                       | (bulk DELETE done on Invoices &       |        |        |          |
     |                       | Expenses; bulk send/export pending)   |        |        |          |
- 11 | Export Excel/CSV      | Ellaa invoice download, GST filing-ku | Low    | High   | MUST     | ❌
+ 11 | Export Excel/CSV      | Ellaa invoice download, GST filing-ku | Low    | High   | MUST     | ✅
+    |                       | DONE: Invoices page "Export CSV"      |        |        |          |
+    |                       | button (client-side, csvExport.js)    |        |        |          |
  12 | GST reports           | GSTR-ku ready summary (India)         | High   | High   | MUST     | ⚠️
     |                       | (Taxable Amount + Tax Collected stat  |        |        |          |
     |                       | cards done; full GSTR-1 style table,  |        |        |          |
@@ -62,9 +71,10 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
     |                       | (9 templates: classic, corporate,     |        |        |          |
     |                       | creative, minimal, elegant, modern,   |        |        |          |
     |                       | redline, executive, goldline)         |        |        |          |
- 14 | UPI QR on invoice     | Customer scan panni uddane pay        | Low    | High   | Nice     | ❌
-    |                       | ("UPI" exists only as a payment-      |        |        |          |
-    |                       | method label, no actual QR code yet)  |        |        |          |
+ 14 | UPI QR on invoice     | Customer scan panni uddane pay        | Low    | High   | Nice     | ✅
+    |                       | DONE: Settings "UPI Payment" (upiId)  |        |        |          |
+    |                       | -> real scan-to-pay QR on invoice PDF |        |        |          |
+    |                       | (upi:// deep link, qrserver.com image)|        |        |          |
  15 | Activity log          | Yaaru enna maathinaanga track         | Medium | Medium | Later    | ❌
  16 | Barcode scan -> item  | Item-la barcode save, invoice-la scan | Medium | High   | Nice     | ❌
     |                       | panna auto-add (Zoho maadhiri)        |        |        |          |
@@ -117,22 +127,27 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
    RECOMMENDED — MUTHALLA IDHU 4 (effort kammi + impact adhigam)
 ==================================================================
 
- [ ] 1. UPI QR code invoice-la  (#14)  — ❌ pending
+ [x] 1. UPI QR code invoice-la  (#14)  — ✅ DONE
         - chinna vela, periya impact
         - customer QR scan panni udane pay
         - India-la game changer
 
- [ ] 2. Excel/CSV export  (#11)  — ❌ pending
+ [x] 2. Excel/CSV export  (#11)  — ✅ DONE
         - GST filing-ku accountant-ku kudukka venum
         - easy, essential
 
- [ ] 3. PDF email send  (#1)  — ❌ pending
+ [x] 3. PDF email send  (#1)  — ✅ DONE
         - "download -> attach -> send" moonu step
           ore click aagum
 
- [ ] 4. Quotes/Estimates  (#8)  — ❌ pending
+ [x] 4. Quotes/Estimates  (#8)  — ✅ DONE
         - hardware store-ku super useful
         - quote kuduthu, ok-na invoice-a convert
+
+------------------------------------------------------------------
+ ALL 4 RECOMMENDED ITEMS DONE ✅ — next priority-ku #20/21/22
+ (security: helmet, rate-limit, mongo-sanitize) paaru mele table-la.
+------------------------------------------------------------------
 
 ------------------------------------------------------------------
  Target: chinna kadai + freelancers, India, GST
