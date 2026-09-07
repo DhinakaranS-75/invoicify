@@ -65,6 +65,8 @@ export default function InvoiceDocument({ data, template = 'classic', currency =
           {data.toAddr ? <div style={{ whiteSpace: 'pre-line' }}>{data.toAddr}</div> : null}
           {data.toPhone ? <div>{data.toPhone}</div> : null}
           {data.toEmail ? <div>{data.toEmail}</div> : null}
+          {data.toGst ? <div>GSTIN: {data.toGst}</div> : null}
+          {data.toState ? <div>Place of Supply: {data.toState}</div> : null}
         </div>
         {data.shipTo ? (
           <div className="inv-doc-addr-box">
@@ -180,6 +182,7 @@ export function invoiceToDocData(inv, company, signature) {
     bankName: company?.bankName, accountNumber: company?.accountNumber, ifsc: company?.ifsc,
     upiId: company?.upiId || '',
     toName: inv.client, toAddr: s.toAddr, toPhone: s.toPhone, toEmail: s.toEmail,
+    toGst: s.toGst || '', toState: s.toState || '',
     shipTo: s.shipTo,
     items, subtotal, taxPct, taxAmt, discPct, discAmt, total,
     notes: s.notes, signature: signature || s.signature || null

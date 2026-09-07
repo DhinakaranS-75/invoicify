@@ -245,7 +245,7 @@ export default function Items() {
                 <div className="field-sm"><label>Selling Price</label><input type="number" min="0" step="0.01" value={form.selling} onChange={set('selling')} placeholder="0.00" /></div>
                 <div className="field-sm"><label>Tax Rate (%)</label><input type="number" min="0" max="100" step="0.01" value={form.tax} onChange={set('tax')} placeholder="e.g. 18" /></div>
                 <div className="field-sm"><label>Usage Unit</label>
-                  <select value={form.unit} onChange={set('unit')}><option value="Box">Box</option><option value="Pcs">Pcs</option><option value="Number">Number</option></select>
+                  <select value={form.unit} onChange={set('unit')}><option value="Box">Box</option><option value="Pcs">Pcs</option><option value="Number">Number</option><option value="Meters">Meters</option><option value="NOS">NOS</option></select>
                 </div>
               </div>
               <div className="actions-row">

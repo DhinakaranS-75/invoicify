@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { fmt, statusBadgeClass } from '../utils/format';
 import { getReportBounds, inRange } from '../utils/dates';
 import { api } from '../utils/api';
+import { exportGstSummaryToCsv } from '../utils/csvExport';
 import ChartCanvas from '../components/ChartCanvas';
 
 const PERIOD_LABELS = {
@@ -17,11 +18,12 @@ const STATUS_COLORS = {
 };
 
 export default function Reports() {
-  const { invoices, incomes, expenses, currency } = useData();
+  const { invoices, incomes, expenses, currency, currentUser } = useData();
   const { theme } = useTheme();
   const { toast } = useToast();
   const [period, setPeriod] = useState('fy_current');
   const [sendingReport, setSendingReport] = useState(false);
+  const company = currentUser?.company || {};
 
   const [start, end] = getReportBounds(period);
   const textColor = theme === 'dark' ? '#c8c9e8' : '#5b5d7a';
@@ -40,6 +42,15 @@ export default function Reports() {
     } finally {
       setSendingReport(false);
     }
+  };
+
+  const exportGstCsv = () => {
+    exportGstSummaryToCsv(
+      { hsnSummary: data.hsnSummary, b2bInvoices: data.b2bInvoices, b2cSummary: data.b2cSummary },
+      PERIOD_LABELS[period] || period,
+      `gst-summary-${new Date().toISOString().slice(0, 10)}`
+    );
+    toast('CSV downloaded', 'GST summary exported.');
   };
 
   const data = useMemo(() => {
@@ -86,8 +97,67 @@ export default function Reports() {
     });
     const topItems = Object.entries(itemMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-    return { invInRange, totalRevenue, collected, outstanding, statusCounts, totalIncome, totalExpense, netProfit, taxable, tax, topCustomers, topItems };
-  }, [invoices, incomes, expenses, start, end]);
+    // ---- GST Summary (GSTR-1-ready) ----
+    // Table 12 style: grouped by HSN + tax rate (a line item's rate comes
+    // from its invoice's single taxPct — there's no per-line-item rate).
+    const hsnMap = {};
+    invInRange.forEach((inv) => {
+      const s = inv.snapshot || {};
+      const rate = parseFloat(s.taxPct) || 0;
+      (s.items || []).forEach((li) => {
+        const hsn = li.hsn || 'N/A';
+        const key = hsn + '|' + rate;
+        if (!hsnMap[key]) hsnMap[key] = { hsn, rate, qty: 0, taxable: 0, desc: li.name || '' };
+        hsnMap[key].qty += li.qty || 0;
+        hsnMap[key].taxable += (li.qty || 0) * (li.rate || 0);
+      });
+    });
+    const hsnSummary = Object.values(hsnMap)
+      .map((row) => ({ ...row, taxAmt: row.taxable * row.rate / 100, total: row.taxable * (1 + row.rate / 100) }))
+      .sort((a, b) => b.taxable - a.taxable);
+
+    // Table 4 style: invoice-wise, only for customers with a GSTIN (B2B).
+    const companyState = (company.state || '').trim().toLowerCase();
+    const b2bInvoices = invInRange.filter((inv) => inv.snapshot?.toGst).map((inv) => {
+      const s = inv.snapshot || {};
+      const rate = parseFloat(s.taxPct) || 0;
+      const taxable = (s.items || []).reduce((sum, li) => sum + (li.qty || 0) * (li.rate || 0), 0);
+      const taxAmt = taxable * rate / 100;
+      const placeOfSupply = s.toState || '';
+      const stateKnown = !!placeOfSupply;
+      const interState = stateKnown && placeOfSupply.trim().toLowerCase() !== companyState;
+      return {
+        gst: s.toGst, number: inv.number, date: inv.date, client: inv.client,
+        placeOfSupply: placeOfSupply || 'Unknown', stateKnown, taxable, rate, taxAmt,
+        igst: interState ? taxAmt : 0,
+        cgst: stateKnown && !interState ? taxAmt / 2 : 0,
+        sgst: stateKnown && !interState ? taxAmt / 2 : 0,
+        total: taxable + taxAmt
+      };
+    });
+    const b2bMissingState = b2bInvoices.filter((r) => !r.stateKnown).length;
+
+    // Table 7 style: remaining invoices (no GSTIN), aggregated by rate.
+    const b2cInvoices = invInRange.filter((inv) => !inv.snapshot?.toGst);
+    const b2cMap = {};
+    b2cInvoices.forEach((inv) => {
+      const s = inv.snapshot || {};
+      const rate = parseFloat(s.taxPct) || 0;
+      const taxable = (s.items || []).reduce((sum, li) => sum + (li.qty || 0) * (li.rate || 0), 0);
+      if (!b2cMap[rate]) b2cMap[rate] = { rate, count: 0, taxable: 0 };
+      b2cMap[rate].count += 1;
+      b2cMap[rate].taxable += taxable;
+    });
+    const b2cSummary = Object.values(b2cMap)
+      .map((row) => ({ ...row, taxAmt: row.taxable * row.rate / 100, total: row.taxable * (1 + row.rate / 100) }))
+      .sort((a, b) => b.taxable - a.taxable);
+
+    return {
+      invInRange, totalRevenue, collected, outstanding, statusCounts, totalIncome, totalExpense,
+      netProfit, taxable, tax, topCustomers, topItems,
+      hsnSummary, b2bInvoices, b2bMissingState, b2cSummary
+    };
+  }, [invoices, incomes, expenses, start, end, company.state]);
 
   const statusEntries = Object.entries(data.statusCounts);
   const statusChartConfig = {
@@ -177,6 +247,94 @@ export default function Reports() {
           <div className="stat-card"><div className="stat-label">Tax Collected</div><div className="stat-value">{fmt(data.tax, currency)}</div></div>
         </div>
       </div>
+
+      {/* Segment 4b: GST Summary (GSTR-1 ready) — only for GST-registered businesses */}
+      {company.gst && (
+        <div className="report-segment">
+          <div className="report-seg-head"><i className="fa-solid fa-file-contract"></i> GST Summary (GSTR-1 ready)</div>
+
+          <div className="panel" style={{ marginBottom: '16px' }}>
+            <div className="panel-head-row">
+              <h3>HSN/SAC-wise Summary <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>(Table 12 style)</span></h3>
+              <button className="btn btn-small btn-outline" onClick={exportGstCsv} title="Export as CSV"><i className="fa-solid fa-file-csv"></i> Export GST Summary CSV</button>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="invoice-dash-table">
+                <thead><tr><th>HSN/SAC</th><th>Description</th><th>Qty</th><th>Rate</th><th>Taxable Value</th><th>Tax Amount</th><th>Total</th></tr></thead>
+                <tbody>
+                  {data.hsnSummary.length === 0 ? (
+                    <tr><td colSpan="7"><p className="empty-line" style={{ fontSize: '13px', margin: 0 }}>No items in this period.</p></td></tr>
+                  ) : data.hsnSummary.map((row) => (
+                    <tr key={row.hsn + row.rate} className="inv-row">
+                      <td>{row.hsn}</td>
+                      <td>{row.desc || '—'}</td>
+                      <td>{row.qty}</td>
+                      <td>{row.rate}%</td>
+                      <td className="amt-col">{fmt(row.taxable, currency)}</td>
+                      <td className="amt-col">{fmt(row.taxAmt, currency)}</td>
+                      <td className="amt-col">{fmt(row.total, currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="panel" style={{ marginBottom: '16px' }}>
+            <h3>B2B Invoices <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>(Table 4 style — customers with GSTIN)</span></h3>
+            {data.b2bMissingState > 0 && (
+              <p style={{ fontSize: '12px', color: 'var(--orange)', margin: '0 0 10px' }}>
+                <i className="fa-solid fa-triangle-exclamation"></i> {data.b2bMissingState} invoice{data.b2bMissingState > 1 ? 's' : ''} above {data.b2bMissingState > 1 ? 'don\'t' : 'doesn\'t'} have a saved Place of Supply — edit and re-save to fix (older invoices, created before this field existed).
+              </p>
+            )}
+            <div style={{ overflowX: 'auto' }}>
+              <table className="invoice-dash-table">
+                <thead><tr><th>GSTIN</th><th>Invoice #</th><th>Date</th><th>Customer</th><th>Place of Supply</th><th>Taxable Value</th><th>IGST</th><th>CGST</th><th>SGST</th><th>Total</th></tr></thead>
+                <tbody>
+                  {data.b2bInvoices.length === 0 ? (
+                    <tr><td colSpan="10"><p className="empty-line" style={{ fontSize: '13px', margin: 0 }}>No B2B invoices (with GSTIN) in this period.</p></td></tr>
+                  ) : data.b2bInvoices.map((row) => (
+                    <tr key={row.number} className="inv-row">
+                      <td>{row.gst}</td>
+                      <td>{row.number}</td>
+                      <td>{row.date || '—'}</td>
+                      <td>{row.client}</td>
+                      <td>{row.stateKnown ? row.placeOfSupply : <span style={{ color: 'var(--orange)' }}>Unknown</span>}</td>
+                      <td className="amt-col">{fmt(row.taxable, currency)}</td>
+                      <td className="amt-col">{row.igst > 0 ? fmt(row.igst, currency) : '—'}</td>
+                      <td className="amt-col">{row.cgst > 0 ? fmt(row.cgst, currency) : '—'}</td>
+                      <td className="amt-col">{row.sgst > 0 ? fmt(row.sgst, currency) : '—'}</td>
+                      <td className="amt-col">{fmt(row.total, currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="panel">
+            <h3>B2C Summary <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>(Table 7 style — no GSTIN, grouped by rate)</span></h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="invoice-dash-table">
+                <thead><tr><th>Tax Rate</th><th>Invoices</th><th>Taxable Value</th><th>Tax Amount</th><th>Total</th></tr></thead>
+                <tbody>
+                  {data.b2cSummary.length === 0 ? (
+                    <tr><td colSpan="5"><p className="empty-line" style={{ fontSize: '13px', margin: 0 }}>No B2C invoices in this period.</p></td></tr>
+                  ) : data.b2cSummary.map((row) => (
+                    <tr key={row.rate} className="inv-row">
+                      <td>{row.rate}%</td>
+                      <td>{row.count}</td>
+                      <td className="amt-col">{fmt(row.taxable, currency)}</td>
+                      <td className="amt-col">{fmt(row.taxAmt, currency)}</td>
+                      <td className="amt-col">{fmt(row.total, currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Segment 5: Top customers & items */}
       <div className="report-segment">

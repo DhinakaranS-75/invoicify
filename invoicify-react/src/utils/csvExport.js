@@ -61,6 +61,48 @@ export function downloadCsv(csvContent, filename) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Builds a single CSV with three sections — HSN-wise summary, B2B invoices,
+ * and B2C summary — matching the tables shown on the Reports page GST
+ * Summary segment. One file an accountant can open directly to fill GSTR-1.
+ */
+export function buildGstSummaryCsv({ hsnSummary, b2bInvoices, b2cSummary, periodLabel }) {
+  const lines = [];
+  lines.push(`GST Summary — ${csvEscape(periodLabel || '')}`);
+  lines.push('');
+
+  lines.push('HSN/SAC-wise Summary (Table 12 style)');
+  lines.push(['HSN/SAC', 'Description', 'Qty', 'Tax Rate %', 'Taxable Value', 'Tax Amount', 'Total'].join(','));
+  hsnSummary.forEach((row) => {
+    lines.push([csvEscape(row.hsn), csvEscape(row.desc), row.qty, row.rate, row.taxable.toFixed(2), row.taxAmt.toFixed(2), row.total.toFixed(2)].join(','));
+  });
+  lines.push('');
+
+  lines.push('B2B Invoices (Table 4 style — customers with GSTIN)');
+  lines.push(['GSTIN', 'Invoice #', 'Date', 'Customer', 'Place of Supply', 'Taxable Value', 'IGST', 'CGST', 'SGST', 'Total'].join(','));
+  b2bInvoices.forEach((row) => {
+    lines.push([
+      csvEscape(row.gst), csvEscape(row.number), csvEscape(row.date), csvEscape(row.client),
+      csvEscape(row.stateKnown ? row.placeOfSupply : 'Unknown'), row.taxable.toFixed(2),
+      row.igst.toFixed(2), row.cgst.toFixed(2), row.sgst.toFixed(2), row.total.toFixed(2)
+    ].join(','));
+  });
+  lines.push('');
+
+  lines.push('B2C Summary (Table 7 style — no GSTIN, grouped by rate)');
+  lines.push(['Tax Rate %', 'Invoices', 'Taxable Value', 'Tax Amount', 'Total'].join(','));
+  b2cSummary.forEach((row) => {
+    lines.push([row.rate, row.count, row.taxable.toFixed(2), row.taxAmt.toFixed(2), row.total.toFixed(2)].join(','));
+  });
+
+  return lines.join('\n');
+}
+
+export function exportGstSummaryToCsv(gstData, periodLabel, filename = 'gst-summary') {
+  const csv = buildGstSummaryCsv({ ...gstData, periodLabel });
+  downloadCsv(csv, filename);
+}
+
 /** Convenience: build + download in one call. */
 export function exportInvoicesToCsv(invoices, customers, filename = 'invoices') {
   const csv = buildInvoicesCsv(invoices, customers);

@@ -34,6 +34,8 @@ const invoiceSchema = new mongoose.Schema({
     toEmail: String,
     toPhone: String,
     toAddr: String,
+    toGst: String,   // customer's GSTIN, frozen at invoice time
+    toState: String, // "Place of Supply" state name, frozen at invoice time — determines IGST vs CGST+SGST
     shipTo: String,
     subject: String,
     orderNumber: String,

@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { fmt } from '../utils/format';
 import { buildInvoiceNumber } from '../utils/invoiceNumber';
 import { registerNavGuard, clearNavGuard } from '../utils/navGuard';
+import { INDIAN_STATES } from '../utils/indianStates';
 import InvoiceDocument from './InvoiceDocument';
 import ScaleToFit from './ScaleToFit';
 import PaymentConflictDialog from './PaymentConflictDialog';
@@ -36,7 +37,8 @@ export default function InvoiceForm({ editingId, onBack }) {
   // Customer
   const [to, setTo] = useState({
     name: editing?.client || '', email: es.toEmail || '', phone: es.toPhone || '',
-    address: es.toAddr || '', shipping: es.shipTo || ''
+    address: es.toAddr || '', shipping: es.shipTo || '',
+    gst: es.toGst || '', state: es.toState || ''
   });
   const [custSuggest, setCustSuggest] = useState(false);
 
@@ -147,7 +149,8 @@ export default function InvoiceForm({ editingId, onBack }) {
     setTo({
       name: c.name, email: c.email || '', phone: c.phone || '',
       address: fullAddr(c.billing) || c.address || '',
-      shipping: fullAddr(c.shipping)
+      shipping: fullAddr(c.shipping),
+      gst: c.gst || '', state: c.billing?.state || ''
     });
     setCustSuggest(false);
   };
@@ -164,6 +167,7 @@ export default function InvoiceForm({ editingId, onBack }) {
     bankName: company.bankName, accountNumber: company.accountNumber, ifsc: company.ifsc,
     upiId: company.upiId || '',
     toName: to.name, toAddr: to.address, toPhone: to.phone, toEmail: to.email, shipTo: to.shipping,
+    toGst: to.gst, toState: to.state,
     items: totals.withAmt, subtotal: totals.subtotal, taxPct, taxAmt: totals.taxAmt,
     discPct: discountPct, discAmt: totals.discAmt, total: totals.total,
     notes, signature: companySignature
@@ -176,7 +180,7 @@ export default function InvoiceForm({ editingId, onBack }) {
   const save = async () => {
     if (!to.name.trim()) { toast('Customer required', 'Please fill the mandatory customer name.', 'error'); return; }
     const snapshot = {
-      toEmail: to.email, toPhone: to.phone, toAddr: to.address, shipTo: to.shipping,
+      toEmail: to.email, toPhone: to.phone, toAddr: to.address, toGst: to.gst, toState: to.state, shipTo: to.shipping,
       subject: details.subject, orderNumber: details.orderNumber,
       notes, taxPct, discountPct, signature: companySignature,
       items: items.map((li) => ({ name: li.name, description: li.description, hsn: li.hsn || '', qty: parseFloat(li.qty) || 0, rate: parseFloat(li.rate) || 0 }))
@@ -318,6 +322,17 @@ export default function InvoiceForm({ editingId, onBack }) {
                   <div className="field-sm"><label>Phone</label><input value={to.phone} onChange={(e) => setTo({ ...to, phone: e.target.value })} placeholder="+91 90000 00000" /></div>
                   <div className="field-sm"><label>Billing Address</label><textarea value={to.address} onChange={(e) => setTo({ ...to, address: e.target.value })} placeholder="Street, City, State - Pincode" rows={3} /></div>
                   <div className="field-sm"><label>Shipping Address <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(optional)</span></label><textarea value={to.shipping} onChange={(e) => setTo({ ...to, shipping: e.target.value })} placeholder="Street, City, State - Pincode" rows={3} /></div>
+                  {company.gst && (
+                    <>
+                      <div className="field-sm"><label>Customer GSTIN <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(optional — leave blank for B2C)</span></label><input value={to.gst} onChange={(e) => setTo({ ...to, gst: e.target.value.toUpperCase() })} placeholder="22AAAAA0000A1Z5" maxLength={15} /></div>
+                      <div className="field-sm"><label>Place of Supply <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(decides IGST vs CGST+SGST)</span></label>
+                        <select value={to.state} onChange={(e) => setTo({ ...to, state: e.target.value })}>
+                          <option value="">Select state…</option>
+                          {INDIAN_STATES.map((s) => <option key={s.code} value={s.name}>{s.name}</option>)}
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
