@@ -187,4 +187,4 @@ export function invoiceToDocData(inv, company, signature) {
     items, subtotal, taxPct, taxAmt, discPct, discAmt, total,
     notes: s.notes, signature: signature || s.signature || null
   };
-}
+} 
