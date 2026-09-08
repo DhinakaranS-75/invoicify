@@ -7,14 +7,15 @@ import {
   sendEmailVerifyOtp, verifyEmailOtp, getLoginActivity, revokeSession
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
+import { loginLimiter, forgotPasswordLimiter, resetPasswordLimiter, emailOtpLimiter } from '../middleware/rateLimiters.js';
 
 const router = express.Router();
 
 // --- Public ---
 router.post('/register', register);
-router.post('/login', login);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+router.post('/login', loginLimiter, login);
+router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
+router.post('/reset-password', resetPasswordLimiter, resetPassword);
 router.post('/set-password', setPassword);          // invited member sets their own password
 router.get('/invite/:token', getInvite);            // look up an invitation
 router.post('/invite/:token/accept', acceptInvite); // accept it -> temp password emailed
@@ -26,7 +27,7 @@ router.put('/change-password', protect, changePassword);
 router.get('/login-activity', protect, getLoginActivity);
 router.put('/login-activity/:id/revoke', protect, revokeSession);
 router.post('/send-email-verify-otp', protect, sendEmailVerifyOtp);
-router.post('/verify-email-otp', protect, verifyEmailOtp);
+router.post('/verify-email-otp', protect, emailOtpLimiter, verifyEmailOtp);
 router.put('/company', protect, updateCompany);
 router.get('/team', protect, getTeam);
 router.post('/team', protect, addTeamMember);

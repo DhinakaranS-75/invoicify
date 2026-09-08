@@ -246,6 +246,13 @@ function ForgotForm({ goTo, setResetEmail }) {
       toast('Check your email', 'We sent a 6-digit reset code. It expires in 10 minutes.');
       goTo('reset');
     } catch (err) {
+      if (err.status === 429) {
+        // Too many requests for this account — show the real reason
+        // instead of masking it, so the person understands why nothing
+        // is arriving rather than assuming the app is broken.
+        setError(err.message);
+        return;
+      }
       // Don't reveal whether the email exists — show the same message either way
       setResetEmail(email);
       toast('Check your email', 'If that email is registered, a reset code is on its way.');
@@ -305,8 +312,12 @@ function ResetForm({ goTo, resetEmail }) {
       await api.post('/api/auth/forgot-password', { email: resetEmail });
       toast('Code sent', `We sent a new code to ${resetEmail}.`);
     } catch (err) {
-      // Same "don't reveal if it exists" behavior as the initial send.
-      toast('Code sent', 'If that email is registered, a new code is on its way.');
+      if (err.status === 429) {
+        toast('Too many attempts', err.message, 'error');
+      } else {
+        // Same "don't reveal if it exists" behavior as the initial send.
+        toast('Code sent', 'If that email is registered, a new code is on its way.');
+      }
     } finally {
       setResending(false);
       setResendCooldown(RESEND_COOLDOWN_SECONDS);

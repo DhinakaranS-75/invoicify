@@ -254,7 +254,7 @@ export default function Reports() {
           <div className="report-seg-head"><i className="fa-solid fa-file-contract"></i> GST Summary (GSTR-1 ready)</div>
 
           <div className="panel" style={{ marginBottom: '16px' }}>
-            <div className="panel-head-row">
+            <div className="panel-head-row panel-head-row-actions">
               <h3>HSN/SAC-wise Summary <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>(Table 12 style)</span></h3>
               <button className="btn btn-small btn-outline" onClick={exportGstCsv} title="Export as CSV"><i className="fa-solid fa-file-csv"></i> Export GST Summary CSV</button>
             </div>

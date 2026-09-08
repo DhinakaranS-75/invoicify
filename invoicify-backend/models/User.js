@@ -58,6 +58,15 @@ const userSchema = new mongoose.Schema({
   // Password reset (OTP-based) — resetOtp stores a bcrypt-hashed 6-digit code
   resetOtp: String,
   resetOtpExpiry: Date,
+  // 3 wrong OTP guesses -> locked out of the whole forgot-password flow
+  // (both requesting a new code and submitting one) for 5 hours.
+  resetOtpAttempts: { type: Number, default: 0 },
+  // 3 REQUESTS for a new code (initial "forgot password" submit OR "Resend
+  // code") also locks the same way — stops someone hammering "resend"
+  // indefinitely even if they never guess wrong. Shares resetOtpLockedUntil
+  // with the wrong-guess counter above — either one hitting 3 locks both.
+  resetOtpRequestCount: { type: Number, default: 0 },
+  resetOtpLockedUntil: Date,
 
   // ---- Team invitation / activation flow ----
   // 'active'   = normal account, can log in
@@ -90,6 +99,9 @@ userSchema.methods.toSafeObject = function () {
   delete obj.password;
   delete obj.resetOtp;
   delete obj.resetOtpExpiry;
+  delete obj.resetOtpAttempts;
+  delete obj.resetOtpRequestCount;
+  delete obj.resetOtpLockedUntil;
   delete obj.emailVerifyOtp;
   delete obj.emailVerifyOtpExpiry;
   delete obj.inviteToken;

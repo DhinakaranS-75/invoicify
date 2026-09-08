@@ -163,11 +163,50 @@ export async function forgotPassword(req, res) {
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (user) {
-      // Generate a 6-digit code, store only its bcrypt hash + a 10-minute expiry
+      const now = Date.now();
+      const isLocked = user.resetOtpLockedUntil && user.resetOtpLockedUntil.getTime() > now;
+
+      if (isLocked) {
+        // Locked out (either from 3 wrong OTP guesses, or 3 code requests —
+        // see below). Deliberately explicit here (unlike the generic
+        // response at the bottom) so a real user who's just hammered
+        // "Resend" understands why nothing new is arriving, instead of
+        // thinking the app is broken. The trade-off: this does confirm the
+        // email is registered. Given this only fires after real repeated
+        // activity on the account (not a single probe), that's an
+        // acceptable trade for a small-business app like this one.
+        const hrsLeft = Math.max(1, Math.ceil((user.resetOtpLockedUntil.getTime() - now) / (60 * 60 * 1000)));
+        return res.status(429).json({ message: `Too many attempts. Please try again in about ${hrsLeft} hour${hrsLeft > 1 ? 's' : ''}.` });
+      }
+
+      // A previous lock has expired — start this account's counters fresh.
+      if (user.resetOtpLockedUntil) {
+        user.resetOtpLockedUntil = undefined;
+        user.resetOtpRequestCount = 0;
+        user.resetOtpAttempts = 0;
+      }
+
+      // Count THIS request. More than 3 code requests (the initial "Send
+      // reset code" plus "Resend code" clicks all hit this same endpoint)
+      // locks the account for 5 hours — stops someone re-requesting
+      // indefinitely even if they never submit a wrong guess.
+      user.resetOtpRequestCount = (user.resetOtpRequestCount || 0) + 1;
+
+      if (user.resetOtpRequestCount > 3) {
+        user.resetOtpLockedUntil = new Date(now + 5 * 60 * 60 * 1000);
+        user.resetOtpRequestCount = 0;
+        user.resetOtp = undefined;
+        user.resetOtpExpiry = undefined;
+        await user.save();
+        return res.status(429).json({ message: 'Too many attempts. Please try again in about 5 hours.' });
+      }
+
+      // Under the limit — generate a 6-digit code, store only its bcrypt
+      // hash + a 10-minute expiry, and send it.
       const otp = String(Math.floor(100000 + Math.random() * 900000));
       const salt = await bcrypt.genSalt(10);
       user.resetOtp = await bcrypt.hash(otp, salt);
-      user.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+      user.resetOtpExpiry = new Date(now + 10 * 60 * 1000);
       await user.save(); // password isn't modified, so it won't be re-hashed
 
       // Fire-and-forget: do NOT await this. The HTTP response should never
@@ -179,8 +218,8 @@ export async function forgotPassword(req, res) {
       });
     }
 
-    // Always respond the same way, whether or not the email exists,
-    // so attackers can't use this to discover registered emails.
+    // No matching user -> respond the same way as a successful send, so
+    // attackers can't use this to discover registered emails.
     res.json({ message: 'If that email is registered, a reset code has been sent.' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -202,6 +241,13 @@ export async function resetPassword(req, res) {
     if (!user || !user.resetOtp || !user.resetOtpExpiry) {
       return res.status(400).json({ message: 'Invalid or expired reset code.' });
     }
+
+    // Already locked out from a previous round of 3 wrong guesses?
+    if (user.resetOtpLockedUntil && user.resetOtpLockedUntil.getTime() > Date.now()) {
+      const hrsLeft = Math.max(1, Math.ceil((user.resetOtpLockedUntil.getTime() - Date.now()) / (60 * 60 * 1000)));
+      return res.status(429).json({ message: `Too many wrong attempts. Please try again in about ${hrsLeft} hour${hrsLeft > 1 ? 's' : ''}.` });
+    }
+
     if (user.resetOtpExpiry.getTime() < Date.now()) {
       user.resetOtp = undefined;
       user.resetOtpExpiry = undefined;
@@ -210,12 +256,31 @@ export async function resetPassword(req, res) {
     }
 
     const match = await bcrypt.compare(String(otp), user.resetOtp);
-    if (!match) return res.status(400).json({ message: 'Invalid reset code.' });
+    if (!match) {
+      user.resetOtpAttempts = (user.resetOtpAttempts || 0) + 1;
+      // 3rd wrong guess -> lock the whole forgot-password flow (this
+      // endpoint AND requesting a fresh code) for 5 hours, and invalidate
+      // the current code so it can't keep being guessed against.
+      if (user.resetOtpAttempts >= 3) {
+        user.resetOtpLockedUntil = new Date(Date.now() + 5 * 60 * 60 * 1000);
+        user.resetOtp = undefined;
+        user.resetOtpExpiry = undefined;
+        user.resetOtpAttempts = 0;
+        user.resetOtpRequestCount = 0;
+        await user.save();
+        return res.status(429).json({ message: 'Too many wrong attempts. Please try again in about 5 hours.' });
+      }
+      await user.save();
+      return res.status(400).json({ message: 'Invalid reset code.' });
+    }
 
-    // Set the new password (pre-save hook hashes it) and clear the code
+    // Correct code — reset the attempt counter/lockout and proceed
     user.password = newPassword;
     user.resetOtp = undefined;
     user.resetOtpExpiry = undefined;
+    user.resetOtpAttempts = 0;
+    user.resetOtpRequestCount = 0;
+    user.resetOtpLockedUntil = undefined;
     await user.save();
 
     res.json({ message: 'Password reset successful. You can now log in.' });

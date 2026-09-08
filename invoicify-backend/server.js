@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
 import dotenv from 'dotenv';
 import os from 'os';
 import { connectDB } from './config/db.js';
@@ -27,7 +29,18 @@ const app = express();
 // Render (and most cloud hosts) sit behind a reverse proxy — without this,
 // req.ip would show the proxy's internal IP instead of the real visitor's,
 // which breaks login-activity IP logging (see authController.login).
-app.set('trust proxy', true);
+// Set to exactly 1 (not `true`/unlimited) — there's exactly one proxy hop
+// in front of this server (Render's load balancer, or the Cloudflare
+// Tunnel for the self-hosted setup). Trusting an unbounded number of hops
+// lets a client fake its IP via X-Forwarded-For, which would make the rate
+// limiters below trivially bypassable.
+app.set('trust proxy', 1);
+
+// Sets a batch of standard security headers (X-Content-Type-Options,
+// X-Frame-Options/clickjacking protection, HSTS, etc.). This is a pure JSON
+// API (no HTML served here), so helmet's default Content-Security-Policy
+// has nothing to restrict and is safe to leave on its defaults.
+app.use(helmet());
 
 // ---- Middleware ----
 // Allow the React frontend to talk to this API.
@@ -50,6 +63,9 @@ const allowedOrigin = (origin, callback) => {
 app.use(cors({ origin: allowedOrigin, credentials: true }));
 // Parse JSON request bodies (so req.body works)
 app.use(express.json({ limit: '10mb' }));
+// Strips any $ / . operators from req.body/query/params so a crafted
+// request can't manipulate MongoDB queries (NoSQL injection guard).
+app.use(mongoSanitize());
 
 // ---- Health check route ----
 app.get('/', (req, res) => {
