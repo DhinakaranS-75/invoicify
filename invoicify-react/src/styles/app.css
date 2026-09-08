@@ -3630,6 +3630,10 @@ html[data-theme="dark"] .theme-seg-btn.active {
   color: #17b3a3;
   border-color: #17b3a3;
 }
+.stamp-cancelled {
+  color: #e0335c;
+  border-color: #e0335c;
+}
 .inv-doc-words {
   margin-top: 14px;
   padding: 10px 14px;
@@ -3705,6 +3709,7 @@ html[data-theme="dark"] .theme-seg-btn.active {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
   background: #fbfbff;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -3715,6 +3720,59 @@ html[data-theme="dark"] .theme-seg-btn.active {
   display: block;
   color: var(--navy);
   font-size: 13px;
+}
+.saved-item .status-badge {
+  flex: none;
+  font-size: 10.5px;
+  padding: 3px 9px;
+}
+.coming-soon-badge {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: rgba(242, 112, 60, 0.16);
+  color: var(--orange);
+  vertical-align: middle;
+  margin-left: 6px;
+}
+html[data-theme="dark"] .coming-soon-badge {
+  background: rgba(242, 112, 60, 0.22);
+}
+.recent-inv-item {
+  align-items: center;
+}
+.recent-inv-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.recent-inv-left strong {
+  white-space: nowrap;
+}
+.recent-inv-client {
+  color: var(--muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recent-inv-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex: none;
+}
+.recent-inv-right .status-badge {
+  margin: 0;
+}
+.recent-inv-right .amt-col {
+  font-weight: 700;
 }
 .saved-item .sa-actions {
   display: flex;
@@ -5221,6 +5279,11 @@ html[data-theme="dark"] .tips-box {
   background: rgba(23, 179, 163, 0.14);
   color: #128f82;
 }
+.status-cancelled {
+  background: rgba(138, 140, 168, 0.18);
+  color: #5b5d8a;
+  text-decoration: line-through;
+}
 .status-select {
   border: none;
   border-radius: 14px;
@@ -5968,6 +6031,10 @@ html[data-theme="dark"] .status-expired {
 html[data-theme="dark"] .status-converted {
   background-color: rgba(125, 216, 205, 0.15);
   color: #7dd8cd;
+}
+html[data-theme="dark"] .status-cancelled {
+  background-color: #34375f;
+  color: #c6c8e2;
 }
 
 /* ---- Payment-vs-status conflict dialog ---- */
@@ -6877,6 +6944,10 @@ html[data-theme="dark"] .num-ok {
 .inv-filter-draft.active {
   background: #5b5d8a;
   border-color: #5b5d8a;
+}
+.inv-filter-cancelled.active {
+  background: var(--danger);
+  border-color: var(--danger);
 }
 html[data-theme="dark"] .inv-filter {
   background: #23264f;

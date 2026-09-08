@@ -24,6 +24,7 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
   const [mobilePreview, setMobilePreview] = useState(false);
   const [emailDialog, setEmailDialog] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
   const previewRef = useRef(null);
 
   if (!inv) {
@@ -49,6 +50,16 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
   const markAs = (newStatus) => {
     updateInvoice(inv.id, { status: newStatus });
     toast('Status updated', `${inv.number} marked as ${newStatus}.`);
+  };
+
+  // Cancelling (not deleting) keeps the invoice number and record in place
+  // — deleting an already-issued invoice would leave an unexplained gap in
+  // the number sequence, which looks bad under GST audit. A cancelled
+  // invoice stays visible in the list but is excluded from revenue/reports.
+  const cancelInvoice = () => {
+    updateInvoice(inv.id, { status: 'Cancelled' });
+    setCancelConfirm(false);
+    toast('Invoice cancelled', `${inv.number} won't count toward revenue anymore.`, 'delete');
   };
 
   const removeAllPayments = () => {
@@ -125,16 +136,23 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
       <div className="detail-invoice-heading show-mobile">Invoice {inv.number}</div>
 
       <div className="invoice-detail-actions">
-        {can('recordPayment') && <button className="btn btn-small btn-teal detail-action-btn" onClick={() => setPayDialog(true)} title="Record Payment"><i className="fa-solid fa-indian-rupee-sign"></i><span className="btn-label"> Record Payment</span></button>}
-        {can('recordPayment') && paid > 0 && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => setRemovePayConfirm(true)} title="Undo Payment"><i className="fa-solid fa-rupee-sign"></i><span className="btn-label"> Undo Payment</span></button>}
-        {can('recordPayment') && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => markAs('Sent')} title="Mark as Sent"><i className="fa-solid fa-paper-plane"></i><span className="btn-label"> Mark as Sent</span></button>}
-        {can('editInvoice') && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => onEdit(inv.id)} title="Edit"><i className="fa-solid fa-pen"></i><span className="btn-label"> Edit</span></button>}
+        {status !== 'Cancelled' && can('recordPayment') && <button className="btn btn-small btn-teal detail-action-btn" onClick={() => setPayDialog(true)} title="Record Payment"><i className="fa-solid fa-indian-rupee-sign"></i><span className="btn-label"> Record Payment</span></button>}
+        {status !== 'Cancelled' && can('recordPayment') && paid > 0 && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => setRemovePayConfirm(true)} title="Undo Payment"><i className="fa-solid fa-rupee-sign"></i><span className="btn-label"> Undo Payment</span></button>}
+        {status !== 'Cancelled' && can('recordPayment') && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => markAs('Sent')} title="Mark as Sent"><i className="fa-solid fa-paper-plane"></i><span className="btn-label"> Mark as Sent</span></button>}
+        {status !== 'Cancelled' && can('editInvoice') && <button className="btn btn-small btn-outline detail-action-btn" onClick={() => onEdit(inv.id)} title="Edit"><i className="fa-solid fa-pen"></i><span className="btn-label"> Edit</span></button>}
         <button className="btn btn-small btn-outline detail-action-btn" onClick={downloadPDF} title="Download PDF"><i className="fa-solid fa-download"></i><span className="btn-label"> Download PDF</span></button>
         <button className="btn btn-small btn-outline detail-action-btn" onClick={shareInvoice} title="Share Invoice"><i className="fa-solid fa-share-nodes"></i><span className="btn-label"> Share Invoice</span></button>
         <button className="btn btn-small btn-outline detail-action-btn" onClick={() => setEmailDialog(true)} title="Email PDF to Customer"><i className="fa-solid fa-envelope"></i><span className="btn-label"> Email PDF</span></button>
         <button className="btn btn-small btn-outline detail-action-btn" onClick={() => window.print()} title="Print"><i className="fa-solid fa-print"></i><span className="btn-label"> Print</span></button>
+        {status !== 'Cancelled' && can('editInvoice') && <button className="btn btn-small detail-action-btn" style={{ background: 'var(--danger)', color: '#fff' }} onClick={() => setCancelConfirm(true)} title="Cancel Invoice"><i className="fa-solid fa-ban"></i><span className="btn-label"> Cancel Invoice</span></button>}
         <button className="btn btn-small btn-navy detail-preview-btn show-mobile" onClick={() => setMobilePreview(true)}><i className="fa-solid fa-eye"></i> Preview Invoice</button>
       </div>
+
+      {status === 'Cancelled' && (
+        <div className="panel" style={{ borderLeft: '3px solid var(--danger)', marginBottom: '14px' }}>
+          <p style={{ margin: 0, color: 'var(--danger)' }}><i className="fa-solid fa-ban"></i> This invoice is cancelled. It's kept for your records but doesn't count toward revenue or reports.</p>
+        </div>
+      )}
 
       <div className="invoice-detail-split">
         {/* All invoices list (desktop) */}
@@ -224,6 +242,26 @@ export default function InvoiceDetail({ invoiceId, onBack, onEdit, onView }) {
 
       {/* Payment dialog */}
       {payDialog && <PaymentDialog balance={balance} currency={currency} onSave={recordPayment} onClose={() => setPayDialog(false)} />}
+
+      {/* Cancel invoice confirmation */}
+      {cancelConfirm && (
+        <div className="confirm-overlay show" onClick={(e) => { if (e.target === e.currentTarget) setCancelConfirm(false); }}>
+          <div className="confirm-box">
+            <div className="confirm-icon"><i className="fa-solid fa-ban"></i></div>
+            <h3>Cancel {inv.number}?</h3>
+            <p>This invoice will be marked as Cancelled and won't count toward revenue or reports anymore. It stays in your records (with its number) so nothing goes missing from your invoice sequence — that's better for GST audit purposes than deleting it. This can't be undone.</p>
+            {paid > 0 && (
+              <p style={{ color: 'var(--orange)' }}><i className="fa-solid fa-triangle-exclamation"></i> This invoice already has {fmt(paid, currency)} recorded as paid. Cancelling will remove that from your revenue too — make sure that's accounted for elsewhere if the money was genuinely received.</p>
+            )}
+            <div className="confirm-actions">
+              <button className="btn btn-small" style={{ background: 'var(--danger)', color: '#fff' }} onClick={cancelInvoice}>
+                <i className="fa-solid fa-ban"></i> Cancel Invoice
+              </button>
+              <button className="btn btn-small btn-outline" onClick={() => setCancelConfirm(false)}>Go Back</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Email PDF dialog */}
       {emailDialog && (

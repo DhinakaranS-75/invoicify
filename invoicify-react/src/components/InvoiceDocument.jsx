@@ -2,7 +2,7 @@ import { fmt, numberToWords } from '../utils/format';
 
 const STAMP_CLASS = {
   Paid: 'stamp-paid', Unpaid: 'stamp-unpaid', Overdue: 'stamp-overdue',
-  Sent: 'stamp-sent', Draft: 'stamp-draft'
+  Sent: 'stamp-sent', Draft: 'stamp-draft', Cancelled: 'stamp-cancelled'
 };
 
 /**
@@ -187,4 +187,4 @@ export function invoiceToDocData(inv, company, signature) {
     items, subtotal, taxPct, taxAmt, discPct, discAmt, total,
     notes: s.notes, signature: signature || s.signature || null
   };
-} 
+}

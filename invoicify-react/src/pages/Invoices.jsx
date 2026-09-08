@@ -38,16 +38,35 @@ export default function Invoices() {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
   });
   const toggleSelectAll = (checked) => setSelected(checked ? new Set(invoices.map((i) => i.id)) : new Set());
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!pendingDelete) return;
-    deleteInvoice(pendingDelete.id);
-    toast('Invoice deleted', `${pendingDelete.number || 'Invoice'} was removed.`, 'delete');
+    try {
+      await deleteInvoice(pendingDelete.id);
+      toast('Invoice deleted', `${pendingDelete.number || 'Invoice'} was removed.`, 'delete');
+    } catch (err) {
+      toast('Could not delete', err.message || 'Only Draft invoices can be deleted.', 'error');
+    }
     setPendingDelete(null);
   };
 
-  const bulkDelete = () => {
-    [...selected].forEach((id) => deleteInvoice(id));
-    toast('Invoices deleted', `${selected.size} removed.`, 'delete');
+  const bulkDelete = async () => {
+    const selectedInvoices = invoices.filter((inv) => selected.has(inv.id));
+    const draftOnes = selectedInvoices.filter((inv) => !inv.status || inv.status === 'Draft');
+    const skipped = selectedInvoices.length - draftOnes.length;
+
+    for (const inv of draftOnes) {
+      try { await deleteInvoice(inv.id); } catch { /* best-effort — already Draft-filtered */ }
+    }
+
+    if (draftOnes.length === 0) {
+      toast('Nothing deleted', 'Only Draft invoices can be deleted. Open an issued invoice and use "Cancel Invoice" instead.', 'error');
+    } else {
+      toast(
+        'Invoices deleted',
+        `${draftOnes.length} removed.` + (skipped > 0 ? ` ${skipped} skipped — only Draft invoices can be deleted.` : ''),
+        'delete'
+      );
+    }
     setSelected(new Set());
   };
 
@@ -89,7 +108,7 @@ export default function Invoices() {
 
   // ...then count each status within those results, so the pills reflect what
   // the current search actually contains.
-  const STATUS_ORDER = ['Draft', 'Sent', 'Unpaid', 'Overdue', 'Paid'];
+  const STATUS_ORDER = ['Draft', 'Sent', 'Unpaid', 'Overdue', 'Paid', 'Cancelled'];
   const statusCounts = useMemo(() => {
     const c = {};
     queryFiltered.forEach((inv) => {
@@ -287,7 +306,7 @@ export default function Invoices() {
                         <i className="fa-solid fa-copy"></i> Duplicate
                       </button>
                     )}
-                    {can('editInvoice') && (
+                    {can('editInvoice') && (!inv.status || inv.status === 'Draft') && (
                       <button className="mic-menu-danger" onClick={() => { setMenuFor(null); setPendingDelete(inv); }}>
                         <i className="fa-solid fa-trash-can"></i> Delete
                       </button>

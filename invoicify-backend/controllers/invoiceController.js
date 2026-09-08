@@ -136,8 +136,19 @@ export async function emailInvoicePdf(req, res) {
 // DELETE /api/invoices/:id
 export async function deleteInvoice(req, res) {
   try {
-    const invoice = await Invoice.findOneAndDelete({ _id: req.params.id, companyId: req.user.companyId });
+    const invoice = await Invoice.findOne({ _id: req.params.id, companyId: req.user.companyId });
     if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
+
+    // Once an invoice has left Draft (i.e. it's actually been issued), it
+    // can't be hard-deleted — that would silently create a gap in the
+    // invoice number sequence with zero record of why, which looks bad
+    // under GST audit. Use "Cancel Invoice" instead, which keeps the
+    // record (excluded from totals) so the gap is explained.
+    if (invoice.status && invoice.status !== 'Draft') {
+      return res.status(400).json({ message: 'Only Draft invoices can be deleted. Use "Cancel Invoice" for issued invoices instead.' });
+    }
+
+    await invoice.deleteOne();
     res.json({ message: 'Invoice deleted', id: req.params.id });
   } catch (err) {
     res.status(500).json({ message: err.message });

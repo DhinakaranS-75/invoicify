@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
-import { fmt, generateId } from '../utils/format';
+import { fmt, generateId, statusBadgeClass } from '../utils/format';
 import { getPeriodBounds, monthBuckets, inRange } from '../utils/dates';
 import ChartCanvas from '../components/ChartCanvas';
 import GettingStarted from '../components/GettingStarted';
@@ -33,7 +33,10 @@ export default function Home() {
   }, [gsAllDone, gsDismissed, onboardKey]);
 
   // ---- Stats ----
-  const totalRevenue = invoices.reduce((s, i) => s + (i.total || 0), 0);
+  // Cancelled invoices are kept for record-keeping (see InvoiceDetail's
+  // "Cancel Invoice") but shouldn't count as real revenue anywhere.
+  const activeInvoices = useMemo(() => invoices.filter((i) => i.status !== 'Cancelled'), [invoices]);
+  const totalRevenue = activeInvoices.reduce((s, i) => s + (i.total || 0), 0);
 
   // ---- Chart theme colors ----
   const textColor = theme === 'dark' ? '#c8c9e8' : '#5b5d7a';
@@ -46,7 +49,7 @@ export default function Home() {
   const cashflow = useMemo(() => {
     const incomeByMonth = cfBuckets.map((b) => {
       let sum = 0;
-      invoices.forEach((inv) => {
+      activeInvoices.forEach((inv) => {
         const d = inv.date ? new Date(inv.date) : null;
         if (d && d.getFullYear() === b.year && d.getMonth() === b.month) sum += inv.total || 0;
       });
@@ -95,7 +98,7 @@ export default function Home() {
   const pmData = useMemo(() => {
     const incomeByMethod = methods.map((m) => {
       let sum = incomes.filter((i) => i.method === m && inRange(i.date, pmStart, pmEnd)).reduce((s, i) => s + i.amount, 0);
-      invoices.forEach((inv) => {
+      activeInvoices.forEach((inv) => {
         (inv.payments || []).forEach((p) => {
           if (p.method === m && inRange(p.date, pmStart, pmEnd)) sum += p.amount;
         });
@@ -193,9 +196,15 @@ export default function Home() {
           {invoices.length === 0
             ? <p className="empty-line" style={{ fontSize: '13px' }}>No invoices yet.</p>
             : invoices.slice().reverse().slice(0, 5).map((inv) => (
-              <div className="saved-item" key={inv.id}>
-                <div><strong>{inv.number}</strong>{inv.client}</div>
-                <div className="amt-col">{fmt(inv.total, currency)}</div>
+              <div className="saved-item recent-inv-item" key={inv.id}>
+                <div className="recent-inv-left">
+                  <strong>{inv.number}</strong>
+                  <span className="recent-inv-client">{inv.client}</span>
+                </div>
+                <div className="recent-inv-right">
+                  <span className={'status-badge ' + statusBadgeClass(inv.status || 'Draft')}>{inv.status || 'Draft'}</span>
+                  <span className="amt-col">{fmt(inv.total, currency)}</span>
+                </div>
               </div>
             ))}
         </div>
@@ -220,7 +229,7 @@ function IncomePanel({ open, setOpen, incomes, addIncome, deleteIncome, currency
   return (
     <div className="panel section-gap">
       <div className="collapsible-header" onClick={() => setOpen((o) => !o)}>
-        <h2 style={{ margin: 0 }}>Add Income</h2>
+        <h2 style={{ margin: 0 }}>Add Income <span className="coming-soon-badge">Coming Soon</span></h2>
         <i className={'fa-solid fa-chevron-down' + (open ? ' open' : '')}></i>
       </div>
       {open && (
