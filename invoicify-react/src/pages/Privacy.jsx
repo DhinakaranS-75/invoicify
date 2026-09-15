@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 // NOTE FOR DHINAKARAN: same as Terms.jsx — fill in the placeholders and get
 // a real review before this is treated as your final, live policy.
-const LAST_UPDATED = 'August 2026';
+const LAST_UPDATED = 'September 2026';
 const BUSINESS_NAME = 'InvoicifysProPro';
 const SUPPORT_EMAIL = 'supportinvoice@devdom.in';
 
@@ -79,10 +79,12 @@ export default function Privacy() {
           except where we're required to retain records for legal or accounting reasons.
         </p>
         <p>
-          <strong>Inactive accounts:</strong> We may introduce an automatic deletion policy
-          for long-inactive accounts in the future. If we do, we'll update this policy with
-          the specific timeframe before it takes effect, and it will not apply
-          retroactively without notice.
+          <strong>Inactive accounts:</strong> If no one on your team logs in for 15 days, we
+          email a reminder; a second reminder follows at 25 days. At 30 days of inactivity, we
+          schedule the account for deletion and send a final notice, with 7 more days to log in
+          and cancel it. After that grace period, if the account is still inactive, we
+          permanently delete the account and its associated data (invoices, customers, items
+          and expenses). Logging in at any point resets this and keeps your account active.
         </p>
 
         <h2>7. Your Rights</h2>

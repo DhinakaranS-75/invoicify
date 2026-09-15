@@ -50,7 +50,10 @@ export function buildInvoicesCsv(invoices, customers) {
 
 /** Triggers a browser download of the given CSV text. */
 export function downloadCsv(csvContent, filename) {
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  // UTF-8 BOM prefix — without this, Excel on Windows (the default for most
+  // Indian small-business users) misreads the file's encoding and renders
+  // any special characters (em dashes, ₹ symbols) as garbled text.
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -68,17 +71,17 @@ export function downloadCsv(csvContent, filename) {
  */
 export function buildGstSummaryCsv({ hsnSummary, b2bInvoices, b2cSummary, periodLabel }) {
   const lines = [];
-  lines.push(`GST Summary — ${csvEscape(periodLabel || '')}`);
+  lines.push(`GST Summary (${csvEscape(periodLabel || '')})`);
   lines.push('');
 
-  lines.push('HSN/SAC-wise Summary (Table 12 style)');
+  lines.push('HSN/SAC-wise Summary (GSTR-1 Table 12 style)');
   lines.push(['HSN/SAC', 'Description', 'Qty', 'Tax Rate %', 'Taxable Value', 'Tax Amount', 'Total'].join(','));
   hsnSummary.forEach((row) => {
     lines.push([csvEscape(row.hsn), csvEscape(row.desc), row.qty, row.rate, row.taxable.toFixed(2), row.taxAmt.toFixed(2), row.total.toFixed(2)].join(','));
   });
   lines.push('');
 
-  lines.push('B2B Invoices (Table 4 style — customers with GSTIN)');
+  lines.push('B2B Invoices (GSTR-1 Table 4 style - customers with GSTIN)');
   lines.push(['GSTIN', 'Invoice #', 'Date', 'Customer', 'Place of Supply', 'Taxable Value', 'IGST', 'CGST', 'SGST', 'Total'].join(','));
   b2bInvoices.forEach((row) => {
     lines.push([
@@ -89,7 +92,7 @@ export function buildGstSummaryCsv({ hsnSummary, b2bInvoices, b2cSummary, period
   });
   lines.push('');
 
-  lines.push('B2C Summary (Table 7 style — no GSTIN, grouped by rate)');
+  lines.push('B2C Summary (GSTR-1 Table 7 style - no GSTIN - grouped by rate)');
   lines.push(['Tax Rate %', 'Invoices', 'Taxable Value', 'Tax Amount', 'Total'].join(','));
   b2cSummary.forEach((row) => {
     lines.push([row.rate, row.count, row.taxable.toFixed(2), row.taxAmt.toFixed(2), row.total.toFixed(2)].join(','));

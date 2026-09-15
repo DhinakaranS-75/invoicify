@@ -64,7 +64,8 @@ export async function register(req, res) {
       name: `${firstName} ${lastName || ''}`.trim(),
       firstName, lastName, email, password,
       role: 'admin', // self-registered accounts are always the company admin
-      onboarded: false
+      onboarded: false,
+      lastLoginAt: new Date()
     });
 
     // Created first so its _id can be embedded in the token (see generateToken).
@@ -116,6 +117,15 @@ export async function login(req, res) {
       ip: req.ip,
       device: parseUserAgent(req.headers['user-agent'])
     });
+
+    // Logging in resets this account's inactivity clock — clears any
+    // warning-email flags and cancels a pending scheduled deletion (see
+    // cronController.runInactivityCheck).
+    user.lastLoginAt = new Date();
+    user.inactivityWarning15SentAt = undefined;
+    user.inactivityWarning25SentAt = undefined;
+    user.scheduledDeletionAt = undefined;
+    await user.save();
 
     res.json({
       token: generateToken(user._id, session._id),

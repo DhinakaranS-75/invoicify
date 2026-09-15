@@ -5,19 +5,15 @@
 Already done: auth ✅, team invite ✅, invoices ✅, customers ✅, items ✅,
 reports ✅, payments ✅, PWA ✅, dark mode ✅, search ✅, filters ✅,
 status colors ✅, duplicate check ✅, pincode auto-fill ✅, landing page ✅,
-expense tracking ✅, dashboard analytics ✅, 9 invoice templates ✅,
-UPI QR ✅, CSV export ✅, PDF email send ✅, Quotes/Estimates ✅.
+expense tracking ✅, dashboard analytics ✅, 9 invoice templates ✅.
 
 Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
 
 ------------------------------------------------------------------
  #  | FEATURE               | ENNA                                  | EFFORT | IMPACT | PRIORITY | STATUS
 ------------------------------------------------------------------
- 1  | PDF email send        | "Send" button -> customer email-ku    | Medium | High   | MUST     | ✅
+ 1  | PDF email send        | "Send" button -> customer email-ku    | Medium | High   | MUST     | ❌
     |                       | PDF neradiya anupurathu               |        |        |          |
-    |                       | DONE: InvoiceDetail "Email PDF" button|        |        |          |
-    |                       | -> backend /api/invoices/:id/email    |        |        |          |
-    |                       | (Brevo attachment via mailer.js)       |        |        |          |
  2  | Recurring invoices    | Monthly rent/subscription auto        | High   | High   | MUST     | ❌
     |                       | generate                              |        |        |          |
  3  | Payment reminders     | Overdue-ku auto email reminder        | Medium | High   | MUST     | ❌
@@ -52,17 +48,12 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
  7  | Expense tracking      | Vaangina bills-um track (accounting)  | High   | Medium | Later    | ✅
     |                       | (own dashboard page, cloud-saved,     |        |        |          |
     |                       | Purchases/COGS category added)        |        |        |          |
- 8  | Quotes/Estimates      | Quotation -> aprm invoice-a convert   | Medium | High   | Nice     | ✅
-    |                       | DONE: full Quote model/CRUD, Quotes   |        |        |          |
-    |                       | page + form + detail, "Convert to     |        |        |          |
-    |                       | Invoice" button (Accepted status)     |        |        |          |
+ 8  | Quotes/Estimates      | Quotation -> aprm invoice-a convert   | Medium | High   | Nice     | ❌
  9  | Customer statement    | Oru customer ellaa invoice + balance  | Low    | Medium | Nice     | ❌
  10 | Bulk actions          | Multi-select -> bulk send/delete/export | Low  | Medium | Nice     | ⚠️
     |                       | (bulk DELETE done on Invoices &       |        |        |          |
     |                       | Expenses; bulk send/export pending)   |        |        |          |
- 11 | Export Excel/CSV      | Ellaa invoice download, GST filing-ku | Low    | High   | MUST     | ✅
-    |                       | DONE: Invoices page "Export CSV"      |        |        |          |
-    |                       | button (client-side, csvExport.js)    |        |        |          |
+ 11 | Export Excel/CSV      | Ellaa invoice download, GST filing-ku | Low    | High   | MUST     | ❌
  12 | GST reports           | GSTR-ku ready summary (India)         | High   | High   | MUST     | ⚠️
     |                       | (Taxable Amount + Tax Collected stat  |        |        |          |
     |                       | cards done; full GSTR-1 style table,  |        |        |          |
@@ -71,10 +62,9 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
     |                       | (9 templates: classic, corporate,     |        |        |          |
     |                       | creative, minimal, elegant, modern,   |        |        |          |
     |                       | redline, executive, goldline)         |        |        |          |
- 14 | UPI QR on invoice     | Customer scan panni uddane pay        | Low    | High   | Nice     | ✅
-    |                       | DONE: Settings "UPI Payment" (upiId)  |        |        |          |
-    |                       | -> real scan-to-pay QR on invoice PDF |        |        |          |
-    |                       | (upi:// deep link, qrserver.com image)|        |        |          |
+ 14 | UPI QR on invoice     | Customer scan panni uddane pay        | Low    | High   | Nice     | ❌
+    |                       | ("UPI" exists only as a payment-      |        |        |          |
+    |                       | method label, no actual QR code yet)  |        |        |          |
  15 | Activity log          | Yaaru enna maathinaanga track         | Medium | Medium | Later    | ❌
  16 | Barcode scan -> item  | Item-la barcode save, invoice-la scan | Medium | High   | Nice     | ❌
     |                       | panna auto-add (Zoho maadhiri)        |        |        |          |
@@ -108,93 +98,34 @@ Legend: ✅ done on website | ⚠️ partial (see note) | ❌ not started yet
     |                       | /api/cron/send-monthly-reports?key=.. |        |        |          |
     |                       | Keep the manual button too — both can |        |        |          |
     |                       | coexist (auto month-end + on-demand). |        |        |          |
- 20 | Security headers      | helmet package -> CSP, HSTS,          | Low    | High   | MUST     | ❌
-    | (helmet)              | X-Frame-Options (clickjacking), COOP  |        |        |          |
-    |                       | headers auto-added. Fixes the CSP/    |        |        |          |
-    |                       | HSTS/COOP/clickjacking gaps flagged   |        |        |          |
-    |                       | in Lighthouse's Best Practices audit. |        |        |          |
- 21 | Rate limiting         | express-rate-limit on login, OTP      | Low    | High   | MUST     | ❌
-    | (auth routes)         | verify, forgot-password routes (e.g.  |        |        |          |
-    |                       | 5 tries / 15 min). Blocks brute-force |        |        |          |
-    |                       | password/OTP guessing bots.           |        |        |          |
- 22 | NoSQL injection guard | express-mongo-sanitize middleware —   | Low    | Medium | Should   | ❌
-    |                       | strips $ / . operators from req.body/ |        |        |          |
-    |                       | query/params so a crafted input can't |        |        |          |
-    |                       | manipulate MongoDB queries.           |        |        |          |
 ------------------------------------------------------------------
 
 ==================================================================
    RECOMMENDED — MUTHALLA IDHU 4 (effort kammi + impact adhigam)
 ==================================================================
 
- [x] 1. UPI QR code invoice-la  (#14)  — ✅ DONE
+ [ ] 1. UPI QR code invoice-la  (#14)  — ❌ pending
         - chinna vela, periya impact
         - customer QR scan panni udane pay
         - India-la game changer
 
- [x] 2. Excel/CSV export  (#11)  — ✅ DONE
+ [ ] 2. Excel/CSV export  (#11)  — ❌ pending
         - GST filing-ku accountant-ku kudukka venum
         - easy, essential
 
- [x] 3. PDF email send  (#1)  — ✅ DONE
+ [ ] 3. PDF email send  (#1)  — ❌ pending
         - "download -> attach -> send" moonu step
           ore click aagum
 
- [x] 4. Quotes/Estimates  (#8)  — ✅ DONE
+ [ ] 4. Quotes/Estimates  (#8)  — ❌ pending
         - hardware store-ku super useful
         - quote kuduthu, ok-na invoice-a convert
-
-------------------------------------------------------------------
- ALL 4 RECOMMENDED ITEMS DONE ✅ — next priority-ku #20/21/22
- (security: helmet, rate-limit, mongo-sanitize) paaru mele table-la.
-------------------------------------------------------------------
 
 ------------------------------------------------------------------
  Target: chinna kadai + freelancers, India, GST
  Note: ellame panna vendam. Priority paathu, one by one.
        Recurring invoices + full GST reports = periya impact
        aana periya vela -> public pona piragu, users kettaa pannalaam.
-------------------------------------------------------------------
-
-
-==================================================================
-   SECURITY CHECKLIST — "website hack aaguma?" kelvikku badil
-==================================================================
-Context: full checklist discussed once, security worry ketta pothu.
-No code implemented yet as of this note — #20/#21/#22 mele table-la
-irukku, adhu than idhula code-level fix panna vendiyathu.
-
---- A. CODE-LEVEL (see #20, #21, #22 in main table above) ---
- [ ] helmet package                — CSP, HSTS, X-Frame-Options,
-                                      COOP headers auto-add
- [ ] express-rate-limit            — login/OTP/forgot-password
-                                      brute-force protect (5 tries/
-                                      15 min madhiri)
- [ ] express-mongo-sanitize        — NoSQL injection guard
-
---- B. INFRA / CONFIG (dashboard-la pannanum, code illa) ---
- [ ] MongoDB Atlas -> Network Access -> IP whitelist check pannu.
-     0.0.0.0/0 (anywhere) open-ah irundha, athu tighten pannu.
-     Self-hosted backend dynamic IP problem irundha, VPN/static IP
-     option paaru.
- [ ] GitHub repo history-la .env commit aayirukka nu check pannu
-     (git log --all --full-history -- .env). Aagirundha, secret
-     rotate pannanum (JWT_SECRET, BREVO_API_KEY, Mongo password
-     ellam maathanum) — .gitignore-la irundha pothaathu, already
-     commit aana thing history-la irundhu poagaathu.
- [ ] Windows laptop (self-hosted backend) firewall ON-ah irukka,
-     Windows Update automatic-ah irukka confirm pannu. Laptop
-     compromise aana, adhu backend-um vachirukura data-um risk.
-
---- C. ONGOING HABITS (one-time fix illa, periodic) ---
- [ ] npm audit — every few months, backend + frontend rendulayum
-     run pannu, vulnerable packages update pannu
- [ ] MongoDB Atlas automatic backup ON-ah irukka confirm pannu
- [ ] Admin account password periodic-ah change pannu — customer
-     GST/payment data irukura app-ku extra careful-ah irukkanum
-
-Note: 2FA/Authenticator app already parked (see earlier "on hold"
-note) — adhuvum idha vachi relate aagum, revisit pannalaam.
 ------------------------------------------------------------------
 
 

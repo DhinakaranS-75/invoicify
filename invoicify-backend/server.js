@@ -15,7 +15,7 @@ import itemRoutes from './routes/itemRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
 import cronRoutes from './routes/cronRoutes.js';
 import cron from 'node-cron';
-import { runMonthlyReportCheck } from './controllers/cronController.js';
+import { runMonthlyReportCheck, runInactivityCheck } from './controllers/cronController.js';
 import reportsRoutes from './routes/reportsRoutes.js';
 
 // Load environment variables from .env
@@ -136,5 +136,22 @@ cron.schedule('30 10 * * *', async () => {
     }
   } catch (err) {
     console.error('[InvoicifysPro] Monthly report cron failed:', err.message);
+  }
+}, { timezone: 'Asia/Kolkata' });
+
+// Runs every day at 9:00 AM IST — checks every company for 15/25-day
+// inactivity warnings and the eventual 30-day (+7-day grace) deletion.
+// See cronController.runInactivityCheck() for the full policy.
+cron.schedule('0 9 * * *', async () => {
+  try {
+    const result = await runInactivityCheck();
+    if (result.warned15 || result.warned25 || result.scheduled || result.deleted) {
+      console.log(`[InvoicifysPro] Inactivity cron: warned15=${result.warned15} warned25=${result.warned25} scheduled=${result.scheduled} deleted=${result.deleted}`);
+    }
+    if (result.errors?.length) {
+      console.error('[InvoicifysPro] Inactivity cron errors:', result.errors);
+    }
+  } catch (err) {
+    console.error('[InvoicifysPro] Inactivity cron failed:', err.message);
   }
 }, { timezone: 'Asia/Kolkata' });

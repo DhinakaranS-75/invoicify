@@ -55,6 +55,22 @@ const userSchema = new mongoose.Schema({
     next: { type: Number, default: 1 }
   },
 
+  // Inactivity tracking — see cronController.runInactivityCheck(). Updated
+  // on every successful login/registration; drives the 15-day/25-day
+  // warning emails and the eventual 30-day+7-day-grace account deletion.
+  lastLoginAt: Date,
+  inactivityWarning15SentAt: Date,
+  inactivityWarning25SentAt: Date,
+  // Set once 30 days of company-wide inactivity is hit. Actual deletion
+  // only happens 7 days AFTER this (a safety buffer) — and is cancelled if
+  // anyone on the team logs back in before then.
+  scheduledDeletionAt: Date,
+
+  // Set once by scripts/notifyInactivityPolicyChange.js — the one-time
+  // "we added an inactivity policy" announcement, so re-running that
+  // script never double-emails anyone.
+  inactivityPolicyNotifiedAt: Date,
+
   // Password reset (OTP-based) — resetOtp stores a bcrypt-hashed 6-digit code
   resetOtp: String,
   resetOtpExpiry: Date,
@@ -102,6 +118,10 @@ userSchema.methods.toSafeObject = function () {
   delete obj.resetOtpAttempts;
   delete obj.resetOtpRequestCount;
   delete obj.resetOtpLockedUntil;
+  delete obj.inactivityWarning15SentAt;
+  delete obj.inactivityWarning25SentAt;
+  delete obj.scheduledDeletionAt;
+  delete obj.inactivityPolicyNotifiedAt;
   delete obj.emailVerifyOtp;
   delete obj.emailVerifyOtpExpiry;
   delete obj.inviteToken;

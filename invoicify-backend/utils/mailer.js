@@ -267,6 +267,61 @@ export async function sendTempPassword({ email, name, tempPassword, companyName 
   console.log(`[InvoicifysPro] Temporary password emailed to ${email}`);
 }
 
+// Sent at 3 points: 15 days inactive, 25 days inactive, and a final notice
+// once the 30-day mark is hit (7 days before actual deletion). `daysLeft`
+// controls the urgency of the wording; `isFinal` swaps in stronger language
+// for that last one.
+export async function sendInactivityWarning({ email, name, companyName, daysInactive, daysLeft, isFinal }) {
+  const subject = isFinal
+    ? `Final notice: your ${companyName || 'InvoicifysPro'} account will be deleted in ${daysLeft} days`
+    : `We miss you — log in within ${daysLeft} days to keep your account`;
+
+  const urgencyColor = isFinal ? '#e0335c' : '#f2703c';
+  const text = `Hi ${name || 'there'}, it's been ${daysInactive} days since anyone on your team logged into InvoicifysPro. ${isFinal ? `Your account and all its data will be permanently deleted in ${daysLeft} days unless someone logs in before then.` : `If no one logs in within the next ${daysLeft} days, your account and data will eventually be deleted.`} Just log in any time to cancel this.`;
+
+  const html = shell(`
+        <div style="font-size:15px;font-weight:700;color:${urgencyColor};margin:18px 0 6px;">${isFinal ? '⚠️ Final notice' : "We haven't seen you in a while"}</div>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 16px;">Hi ${name || 'there'}, it's been <strong>${daysInactive} days</strong> since anyone on your team logged into InvoicifysPro.</p>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 16px;">${isFinal
+          ? `Your account and all its invoices, customers and data will be <strong>permanently deleted in ${daysLeft} days</strong> unless someone logs in before then.`
+          : `If no one logs in within the next <strong>${daysLeft} days</strong>, your account will eventually be scheduled for deletion.`}</p>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 16px;">Logging in any time cancels this — nothing else to do.</p>`);
+
+  if (!isConfigured()) {
+    console.log(`[InvoicifysPro] Inactivity warning for ${email} not sent (email not configured).`);
+    return;
+  }
+  await sendMail({ to: email, subject, text, html });
+  console.log(`[InvoicifysPro] Inactivity warning (${daysInactive}d, final=${!!isFinal}) sent to ${email}`);
+}
+
+// One-time announcement sent to every existing user when the inactivity
+// policy launches — see scripts/notifyInactivityPolicyChange.js. Not tied
+// to anyone's actual activity status; this is a transparency notice, not a
+// warning (that's sendInactivityWarning, used later for real).
+export async function sendInactivityPolicyAnnouncement({ email, name }) {
+  const subject = 'Update: what happens if your InvoicifysPro account goes inactive';
+  const text = `Hi ${name || 'there'}, we've added an inactivity policy to InvoicifysPro. If no one on your team logs in for 15 days, we'll email a reminder (another at 25 days). At 30 days, we schedule the account for deletion and send a final notice, with 7 more days to log in and cancel it. After that, if still inactive, the account and its data are permanently deleted. Logging in at any time resets this — no action needed right now. Full details are in our Terms & Privacy pages.`;
+
+  const html = shell(`
+        <div style="font-size:15px;font-weight:700;color:#2b2f77;margin:18px 0 6px;">A quick policy update 📋</div>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 16px;">Hi ${name || 'there'}, we've added an inactivity policy to InvoicifysPro, so you know exactly what to expect:</p>
+        <table style="width:100%;border-collapse:collapse;margin:0 0 16px;font-size:13px;color:#444;">
+          <tr><td style="padding:6px 10px;border:1px solid #eee;font-weight:700;">15 days</td><td style="padding:6px 10px;border:1px solid #eee;">Reminder email</td></tr>
+          <tr><td style="padding:6px 10px;border:1px solid #eee;font-weight:700;">25 days</td><td style="padding:6px 10px;border:1px solid #eee;">Second reminder</td></tr>
+          <tr><td style="padding:6px 10px;border:1px solid #eee;font-weight:700;">30 days</td><td style="padding:6px 10px;border:1px solid #eee;">Deletion scheduled, final notice sent</td></tr>
+          <tr><td style="padding:6px 10px;border:1px solid #eee;font-weight:700;">37 days</td><td style="padding:6px 10px;border:1px solid #eee;">Account &amp; data permanently deleted, if still inactive</td></tr>
+        </table>
+        <p style="font-size:14px;color:#555;line-height:1.55;margin:0 0 16px;"><strong>Logging in at any time resets this</strong> — there's nothing you need to do right now. Full details are in our Terms &amp; Privacy pages.</p>`);
+
+  if (!isConfigured()) {
+    console.log(`[InvoicifysPro] Policy announcement for ${email} not sent (email not configured).`);
+    return;
+  }
+  await sendMail({ to: email, subject, text, html });
+  console.log(`[InvoicifysPro] Policy announcement sent to ${email}`);
+}
+
 export async function sendAccountDeleted(email, name, dataDeleted) {
   const subject = 'Your InvoicifysPro account has been deleted';
   const dataLine = dataDeleted

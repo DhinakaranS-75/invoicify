@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 // contact email, address, jurisdiction) before this goes live, and have a
 // lawyer review it once the business is registered — this is a solid
 // starting template, not a substitute for real legal advice.
-const LAST_UPDATED = 'August 2026';
+const LAST_UPDATED = 'September 2026';
 const BUSINESS_NAME = 'InvoicifysProPro';
 const SUPPORT_EMAIL = 'supportinvoice@devdom.in';
 const JURISDICTION = 'India';
@@ -108,10 +108,13 @@ export default function Terms() {
           believe are being used for fraudulent or illegal activity.
         </p>
         <p>
-          <strong>Automatic deletion for inactivity:</strong> We may introduce a policy of
-          automatically deleting long-inactive accounts in the future, to protect your data
-          and keep our systems secure. If we do, we'll update these Terms with the specific
-          timeframe and give notice before it takes effect.
+          <strong>Automatic deletion for inactivity:</strong> If no one on your team logs into
+          InvoicifysPro for 15 days, we'll email you a reminder. A second reminder is sent at
+          25 days. If no one has logged in by day 30, we'll schedule your account for deletion
+          and send a final notice — you'll have 7 more days to log in and cancel it. If still no
+          one logs in after that, your account and all associated data (invoices, customers,
+          items and expenses) are permanently deleted. Logging in at any point, by any team
+          member, cancels this and resets the clock.
         </p>
 
         <h2>10. Changes to These Terms</h2>

@@ -54,7 +54,11 @@ export default function Reports() {
   };
 
   const data = useMemo(() => {
-    const invInRange = invoices.filter((inv) => inRange(inv.date, start, end));
+    // Cancelled invoices are kept for record-keeping but never count toward
+    // revenue, tax, or GST figures — excluding them here means every
+    // calculation below (revenue, GST summary, top customers/items) is
+    // automatically correct without needing to filter each one separately.
+    const invInRange = invoices.filter((inv) => inv.status !== 'Cancelled' && inRange(inv.date, start, end));
     const totalRevenue = invInRange.reduce((s, i) => s + (i.total || 0), 0);
     let collected = 0;
     invInRange.forEach((inv) => { (inv.payments || []).forEach((p) => { collected += p.amount; }); });
