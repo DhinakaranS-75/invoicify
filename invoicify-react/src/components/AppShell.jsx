@@ -6,6 +6,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { ROLE_LABELS } from '../utils/format';
 import { requestNav } from '../utils/navGuard';
+import TermsUpdateModal from './TermsUpdateModal';
 // Home stays a normal (non-lazy) import — it's the very first screen almost
 // everyone sees right after login, so there's no benefit to splitting it out;
 // doing so would just add a loading flicker on the most common path.
@@ -22,6 +23,11 @@ const MoreMenu = lazy(() => import('../pages/MoreMenu'));
 const Settings = lazy(() => import('../pages/Settings'));
 
 // Maps our internal page keys to URL paths
+// Must match CURRENT_TERMS_VERSION in backend/controllers/authController.js
+// exactly, and LAST_UPDATED in Terms.jsx/Privacy.jsx. Bump all three
+// together whenever those pages' content changes.
+const CURRENT_TERMS_VERSION = 'September 2026';
+
 const PAGE_PATHS = {
   home: '/home', item: '/items', invoice: '/invoices', quote: '/quotes',
   customer: '/customers', reports: '/reports', expense: '/expenses',
@@ -333,6 +339,8 @@ export default function AppShell() {
           </button>
         )}
       </nav>
+
+      {currentUser && currentUser.termsAcceptedVersion !== CURRENT_TERMS_VERSION && <TermsUpdateModal />}
     </div>
   );
 }

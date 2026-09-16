@@ -66,6 +66,12 @@ const userSchema = new mongoose.Schema({
   // anyone on the team logs back in before then.
   scheduledDeletionAt: Date,
 
+  // Which Terms & Privacy version (see CURRENT_TERMS_VERSION in
+  // authController.js) this user has acknowledged. A mismatch (or this
+  // being unset) makes the frontend show the "Updates to our Terms"
+  // modal on next login — same pattern as X/Twitter's terms-update popup.
+  termsAcceptedVersion: String,
+
   // Set once by scripts/notifyInactivityPolicyChange.js — the one-time
   // "we added an inactivity policy" announcement, so re-running that
   // script never double-emails anyone.

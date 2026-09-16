@@ -63,6 +63,7 @@ export default function Landing() {
           </div>
           <nav className="lp-nav-links">
             <a href="#features" className="lp-nav-link">Features</a>
+            <a href="#pricing" className="lp-nav-link">Pricing</a>
             <a href="#how" className="lp-nav-link">How it works</a>
             <button className="lp-link-btn" onClick={goLogin}>Log in</button>
             <button className="btn btn-orange lp-nav-cta" onClick={goSignup}>Sign up free</button>
@@ -86,7 +87,7 @@ export default function Landing() {
                 ? <button className="btn btn-outline lp-cta" onClick={tryDemo}>Try live demo</button>
                 : <button className="btn btn-outline lp-cta" onClick={goLogin}>I already have an account</button>}
             </div>
-            <p className="lp-trust"><i className="fa-solid fa-circle-check"></i> No credit card &nbsp;·&nbsp; Free forever plan &nbsp;·&nbsp; Your data stays yours</p>
+            <p className="lp-trust"><i className="fa-solid fa-circle-check"></i> No credit card &nbsp;·&nbsp; Free plan available &nbsp;·&nbsp; Your data stays yours</p>
           </div>
 
           {/* Product mockup — pure CSS, no image */}
@@ -154,6 +155,43 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ---- Pricing ---- */}
+      <section className="lp-section" id="pricing">
+        <div className="lp-wrap">
+          <div className="lp-section-head">
+            <h2 className="lp-h2">Simple, honest pricing</h2>
+            <p className="lp-section-sub">Start free. Upgrade only when you actually need more.</p>
+          </div>
+          <div className="lp-pricing-grid">
+            <div className="lp-price-card">
+              <div className="lp-price-name">Free</div>
+              <div className="lp-price-amount">₹0<span>/month</span></div>
+              <ul className="lp-price-features">
+                <li><i className="fa-solid fa-check"></i> 5 invoices / month</li>
+                <li><i className="fa-solid fa-check"></i> 1 user</li>
+                <li><i className="fa-solid fa-check"></i> Unlimited customers &amp; items</li>
+                <li><i className="fa-solid fa-check"></i> Basic invoice template</li>
+              </ul>
+              <button className="btn btn-outline lp-cta lp-price-cta" onClick={goSignup}>Start free</button>
+            </div>
+            <div className="lp-price-card lp-price-featured">
+              <div className="lp-price-badge">Most popular</div>
+              <div className="lp-price-name">Premium</div>
+              <div className="lp-price-amount">₹699<span>/month</span></div>
+              <ul className="lp-price-features">
+                <li><i className="fa-solid fa-check"></i> Unlimited invoices</li>
+                <li><i className="fa-solid fa-check"></i> Unlimited team members</li>
+                <li><i className="fa-solid fa-check"></i> All 9 invoice templates</li>
+                <li><i className="fa-solid fa-check"></i> GST reports &amp; Quotes/Estimates</li>
+                <li><i className="fa-solid fa-check"></i> UPI QR, PDF email &amp; CSV export</li>
+                <li><i className="fa-solid fa-check"></i> No InvoicifysPro branding on invoices</li>
+              </ul>
+              <button className="btn btn-orange lp-cta lp-price-cta" onClick={goSignup}>Get Premium</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ---- Final CTA ---- */}
       <section className="lp-final">
         <div className="lp-wrap lp-final-inner">
@@ -177,6 +215,7 @@ export default function Landing() {
             <button className="lp-link-btn" onClick={goLogin}>Log in</button>
             <button className="lp-link-btn" onClick={goSignup}>Sign up</button>
             <a href="#features" className="lp-nav-link">Features</a>
+            <a href="#pricing" className="lp-nav-link">Pricing</a>
             <a href="/terms" className="lp-nav-link">Terms</a>
             <a href="/privacy" className="lp-nav-link">Privacy</a>
           </div>

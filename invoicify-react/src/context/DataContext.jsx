@@ -278,6 +278,13 @@ export function DataProvider({ children }) {
     }
   }, [currentUser]);
 
+  // Marks the current Terms & Privacy version as acknowledged — dismisses
+  // the "Updates to our Terms" modal (see AppShell.jsx / TermsUpdateModal).
+  const acceptTerms = useCallback(async () => {
+    const res = await api.put('/api/auth/accept-terms', {});
+    setCurrentUser((prev) => (prev ? { ...prev, termsAcceptedVersion: res.termsAcceptedVersion } : prev));
+  }, []);
+
   // ---- Invoices ----
   const addInvoice = useCallback(async (invoice) => {
     const created = await api.post('/api/invoices', invoice);
@@ -427,7 +434,7 @@ export function DataProvider({ children }) {
   const setCompanySignature = useCallback((sig) => updateCurrentUser({ companySignature: sig }), [updateCurrentUser]);
 
   const value = {
-    currentUser, setCurrentUser, updateCurrentUser,
+    currentUser, setCurrentUser, updateCurrentUser, acceptTerms,
     booting,
     invoices, addInvoice, updateInvoice, deleteInvoice, duplicateInvoice,
     quotes, addQuote, updateQuote, deleteQuote, convertQuoteToInvoice,

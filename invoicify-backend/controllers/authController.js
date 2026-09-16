@@ -9,6 +9,13 @@ import LoginActivity from '../models/LoginActivity.js';
 import { sendResetOtp, sendAccountDeleted, sendTeamInvite, sendTempPassword, sendEmailVerifyOtp as sendEmailVerifyOtpMail } from '../utils/mailer.js';
 import { parseUserAgent } from '../utils/parseUserAgent.js';
 
+// Bump this exact string whenever Terms.jsx / Privacy.jsx content changes
+// in a way users should be told about (keep it in sync with LAST_UPDATED
+// in those files). Anyone whose termsAcceptedVersion doesn't match this
+// gets the "Updates to our Terms" modal on next login/app-open — same
+// pattern as X/Twitter's terms-update popup.
+export const CURRENT_TERMS_VERSION = 'September 2026';
+
 // Creates a signed JWT token that expires in 30 days. sessionId (optional)
 // ties this token to a specific LoginActivity record, so it can be
 // individually revoked later from the "Active Sessions" list — see
@@ -336,6 +343,19 @@ export async function setPassword(req, res) {
 
 // PUT /api/auth/change-password  (logged in — different from forgotPassword,
 // which is OTP-based for someone who can't remember their password at all)
+// PUT /api/auth/accept-terms
+// Marks the logged-in user as having acknowledged the current Terms &
+// Privacy version — dismisses the update modal for them going forward
+// (until the version is bumped again).
+export async function acceptTerms(req, res) {
+  try {
+    await User.updateOne({ _id: req.user._id }, { $set: { termsAcceptedVersion: CURRENT_TERMS_VERSION } });
+    res.json({ termsAcceptedVersion: CURRENT_TERMS_VERSION });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
 export async function changePassword(req, res) {
   try {
     const { currentPassword, newPassword } = req.body;

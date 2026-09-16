@@ -3,7 +3,7 @@ import {
   register, login, getMe, updateProfile, updateCompany,
   getTeam, addTeamMember, removeTeamMember, resendInvite,
   forgotPassword, resetPassword, setPassword, changePassword,
-  getInvite, acceptInvite, deleteAccount,
+  getInvite, acceptInvite, deleteAccount, acceptTerms,
   sendEmailVerifyOtp, verifyEmailOtp, getLoginActivity, revokeSession
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
@@ -24,6 +24,7 @@ router.post('/invite/:token/accept', acceptInvite); // accept it -> temp passwor
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.put('/change-password', protect, changePassword);
+router.put('/accept-terms', protect, acceptTerms);
 router.get('/login-activity', protect, getLoginActivity);
 router.put('/login-activity/:id/revoke', protect, revokeSession);
 router.post('/send-email-verify-otp', protect, sendEmailVerifyOtp);
